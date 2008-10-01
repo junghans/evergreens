@@ -1,0 +1,3 @@
+#! /bin/bash -x
+
+find . -name "$1" -exec grep -nH "$2" {} \;
