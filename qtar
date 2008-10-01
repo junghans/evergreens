@@ -1,0 +1,30 @@
+#! /bin/bash 
+
+if [ -z "$1" ]; then
+   echo Usage: ${0##*/} dir
+   echo To create tarball without time add --notime
+   exit 1
+fi
+
+dirname=${1%/}
+if [ "$1" == "--notime" ]; then
+   tarname="${dirname##*/}.tgz"
+   shift
+else
+   time=$(date +%y%m%d_%H%M)
+   tarname="${dirname##*/}.$time.tgz"
+fi
+
+if [ ! -d "$dirname" ]; then
+   echo Argument should be a dir !
+   exit 1
+fi 
+
+if [ -e $tarname ]; then
+   echo $tarname already exist
+   exit 1
+fi
+
+echo -n Creating $tarname from $dirname .....
+tar -czf ${tarname} ${1}
+echo Done

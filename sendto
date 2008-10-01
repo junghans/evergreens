@@ -1,0 +1,57 @@
+#! /bin/bash 
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+  cat <<EOF
+Usage:   ${0##*/} to-addr subject [file ...] 
+
+Example: ${0##*/} matej pics *.eps
+         cat calc.txt | ${0##*/} burkhard "New Calc"
+EOF
+  exit
+fi
+
+if [ $# -lt 2 ]; then
+  echo I need at least 2 arguments.
+  echo Try ${0##*/} --help
+  exit
+fi
+
+case $1 in
+  mmm)
+    towho="muellerm@mpip-mainz.mpg.de";;
+  burkhard)
+    towho="duenweg@mpip-mainz.mpg.de";;
+  me)
+    towho="$USER@mpip-mainz.mpg.de";;
+  matej)
+    towho="praprot@mpip-mainz.mpg.de";;
+  *)
+    if [ -n "$(finger "$1" 2>&1 | grep 'no such user')" ]; then
+      echo User not found please check!
+      exit
+    fi
+    towho="$1@mpip-mainz.mpg.de";;
+esac
+shift
+
+subject="$1"
+shift
+
+attach=""
+while [ -n "$1" ]; do
+  if [ ! -r "$1" ]; then
+    echo File \($1\) does not exist or is not readable!!!
+    exit
+  fi
+  attach="${attach} -a $1"
+  shift
+done
+
+echo Type in some Message \(end with CRTL-D\):
+while read -r; do
+  msg="${msg} \n${REPLY}"
+done
+
+echo -n Sending email to $towho...
+echo -e "$msg" | mail -s "$subject" $attach $towho
+echo done

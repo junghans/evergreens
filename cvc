@@ -1,0 +1,362 @@
+#! /bin/bash
+
+# (C) 2008 Chr. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1   ,10.03.08 -- initial version
+#version 0.2   ,11.03.08 -- better diff, added log and save
+#version 0.3   ,14.03.08 -- bug in list
+#version 0.4   ,17.03.08 -- add pget
+#version 0.5   ,18.03.08 -- add del, pdel
+#version 0.6   ,15.04.08 -- bug fix in date
+#version 0.7   ,15.04.08 -- added tkdiff option
+#version 0.8   ,16.04.08 -- removed --force and better version system
+#version 0.9   ,10.06.08 -- allowed to creat new subdirs
+#version 0.10  ,13.06.08 -- use -1 also for list
+#version 0.11  ,01.09.08 -- removed comment at diff command
+
+#########Defaults
+diffprog="diff"
+repopath="$HOME/myrepo"
+repolog=".${0##*/}log"
+reposave=".${0##*/}save"
+mytime="$(date +%y%m%d.%H%M)"
+subdir=""
+short="no"
+cp_opt="-i"
+cmdline=""
+
+build_repo_path() {
+   repopath="${repopath%/}"
+   subdir="${subdir%/}"
+   if [ -n "$subdir" ]; then
+      total_repopath="$repopath/${subdir}"
+   else
+     total_repopath="$repopath"
+   fi
+   if [ ! -d "$total_repopath" ]; then
+      if [ "$1" = "add" ]; then
+         echo Creating new subdir $subdir
+         mkdir $total_repopath
+      else
+         echo $total_repopath do not exist!
+         exit 1
+      fi
+   fi
+}
+
+check_exist_prog() {
+    if [ -z "$1" ]; then
+       echo No program given !
+       exit 1
+    fi
+    if [ -z "$(type -p $1)" ]; then
+       echo \"$1\" not found
+       exit 1
+    fi
+}
+
+check_exist_file() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    if [ ! -r "$myfile" ]; then
+       echo File \"$myfile\" is not readable
+       exit 1
+    fi
+}
+
+diff_files() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    check_exist_prog diff
+    check_exist_prog $diffprog
+    for myfile in $*; do
+        check_exist_file $myfile
+        findfile $myfile
+        if [ -n "$(diff $myfile $repodir/$myfile)" ]; then
+           #echo diff between local and repo version of $myfile
+           $diffprog $myfile $repodir/$myfile
+           #echo end diff
+        fi
+    done
+}
+
+get_files() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    for myfile in $*; do
+        findfile $myfile
+        echo Copying \"$myfile\" from repo to .
+        cp $cp_opt $repodir/$myfile .
+    done
+}
+
+put_files() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    for myfile in $*; do
+        check_exist_file $myfile
+        findfile $myfile
+        echo -n Saving old file...
+        mkdir -p ${repodir}/${reposave}
+        if mv $repodir/$myfile $repodir/${reposave}/$myfile.$mytime; then
+           echo Done
+        else
+           echo Error
+           exit 1
+        fi
+        echo -n Copying \"$myfile\" to repo...
+        if cp $cp_opt $myfile $repodir; then
+           echo $mytime: Put $myfile to ${repodir#$repopath}/ from $PWD >> $repopath/${repolog}
+           echo Done
+        else
+           echo Error
+           exit 1
+        fi
+    done
+}
+
+add_files() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    for myfile in $*; do
+        if [ -z "${1##*/*}" ]; then
+           echo \"/\" in filename not allowed
+           exit 1
+        fi
+        check_exist_file $myfile
+        if [ -n "$(filelist $myfile)" ]; then
+           echo file \"$myfile\" found, try put command instead or -s option
+           exit 1
+        fi
+        echo -n Adding \"$myfile\" to repo...
+        if cp $cp_opt $myfile $total_repopath; then
+           echo $mytime: Add $myfile to ${total_repopath#$repopath}/ from $PWD >> $repopath/${repolog}
+           echo Done
+        else
+           echo Error
+           exit 1
+        fi
+    done
+}
+
+del_files() {
+    if [ -z "$1" ]; then
+       echo No file given !
+       exit 1
+    fi
+    for myfile in $*; do
+        findfile $myfile
+        echo -n Saving old file...
+        mkdir -p ${repodir}/${reposave}
+        if mv $repodir/$myfile $repodir/${reposave}/$myfile.$mytime; then
+           echo Done
+        else
+           echo Error
+           exit 1
+        fi
+        echo -n Removing \"$myfile\" to repo...
+        echo $mytime: Del $myfile from ${repodir#$repopath}/ >> $repopath/${repolog}
+        echo Done
+    done
+}
+
+filelist() {
+   find $total_repopath -type f -name "$1" | grep -v "$reposave" | grep -v "$repolog"
+}
+
+findfile() {
+   if [ -z "${1##*/*}" ]; then
+      echo \"/\" in filename not allowed
+      exit 1
+   fi
+   myfiles=( $(filelist $1) )
+   if [ ${#myfiles[*]} -gt 1 ]; then
+      echo Found several files !
+      for i in ${myfiles[@]}; do
+          echo ${i#$total_repopath}
+      done
+      exit 1
+   elif [ ${#myfiles[*]} -eq 0 ]; then
+        echo file not found
+        echo add new files with add command
+        exit 1
+   fi
+   repodir=${myfiles[0]%/*}
+}
+
+list() {
+  for myfile in $(filelist "*"); do
+      if [  "$short" = "yes" ]; then
+         echo ${myfile##*/}
+      else
+         echo ${myfile#${total_repopath}}
+      fi
+  done
+}
+
+search() {
+  if [ -z "$1" ]; then
+     echo No pattern given !
+     exit 1
+  fi
+  for arg in $*; do
+      for myfile in $(filelist "*$arg*"); do
+          if [  "$short" = "yes" ]; then
+             echo ${myfile##*/}
+          else
+             echo ${myfile#${total_repopath}}
+          fi
+      done
+  done
+}
+
+showhelp() {
+ cat << eoh
+Christoph's version control
+A very simple version control system!
+
+${0##*/} [OPTIONS] COMMAND FILE [FILE2] ..
+
+COMMANDS:
+
+get    FILE     get file from repository
+pget   PATTERN  pattern get
+                wrapper for ${0##*/} get \$(${0##*/} -1 search PATTERN)
+list            list file in repository
+diff   FILE     show differences between local and repository version
+tkdiff FILE     like diff, but uses tkdiff
+search PATTERN  search file in repository
+put    FILE     put file in repository
+add    FILE     same as put but for new files (change destination with -s)
+del    FILE     rm file from repo (change destination with -s)
+pdel   PATTERN  pattern del (DANGEROUS)
+                wrapper for ${0##*/} del \$(${0##*/} -1 search PATTERN)
+log             show log
+help            show this help
+
+OPTIONS:
+--diff COMMAND  change diff program
+                Default: $diffprog
+-r, --repo PATH change path of repository
+                Default: $repopath
+-s, --sub DIR   Constrain to repo subdir
+-1, --one       Only show files names
+    --cp OPT    Change cp options (try -f for force)
+                Default: $cp_opt
+-v, --version   Prints version
+-h, --help      Show this help message
+eoh
+}
+
+showlog() {
+   cat ${repopath}/${repolog}
+}
+
+while [ "${1#-}" != "$1" ]; do
+  if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    if [ "${1#-[r]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in
+ --diff)
+   diffprog="$2"
+   cmdline="$cmdline --diff $diffprog"
+   shift 2 ;;
+ -r | --repo)
+   repopath="$2"
+   cmdline="$cmdline --repo $repopath"
+   shift 2 ;; 
+ -s | --sub)
+   subdir="$2"
+   cmdline="$cmdline --sub $subdir"
+   shift 2 ;; 
+ --cp)
+   cp_opt="$2"
+   cmdline="$cmdline --cp $cp_opt"
+   shift 2 ;;
+ -1 | --one)
+   short="yes"
+   cmdline="$cmdline -1"
+   shift ;;
+  -v | --version)
+   echo ${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
+   exit 0;;
+  -h | --help)
+   showhelp
+   exit 0;;
+  *)
+   echo Unknown option \'$1\' - ignored
+   shift ;;
+ esac
+done
+
+if [ -z "$1" ]; then
+   echo No command given !
+   echo Help with ${0##*/} help
+   exit 1
+fi
+
+build_repo_path $1
+
+case $1 in
+  diff)
+  shift
+  diff_files $*;;
+  tkdiff)
+  diffprog="tkdiff"
+  shift
+  diff_files $*;;
+  get)
+  shift
+  get_files $*;;
+  pget)
+  shift
+  if [ -z "$1" ]; then
+     echo No pattern given !
+     exit 1
+  fi
+  ${0##*/} $cmdline get $(${0##*/} -1 search $*) ;;
+  help)
+  showhelp ;;
+  log)
+  showlog ;;
+  list)
+  list ;;
+  put)
+  shift
+  put_files $* ;;
+  add)
+  shift
+  add_files $* ;;
+  del)
+  shift
+  del_files $* ;;
+  pdel)
+  shift
+  if [ -z "$1" ]; then
+     echo No pattern given !
+     exit 1
+  fi
+  ${0##*/} $cmdline del $(${0##*/} -1 search $*) ;;
+  search)
+  shift
+  search $* ;;
+  *)
+  echo Command not found 
+  exit 1 ;;
+esac
+

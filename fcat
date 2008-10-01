@@ -1,0 +1,58 @@
+#! /bin/bash
+
+usage="Usage: ${0##*/} script <script2> ..."
+
+help () {
+  cat << eof
+Show content of file after readlink
+$usage
+OPTIONS:
+-h, --help      Show this help
+-v, --version   Show version
+
+Examples:  ${0##*/} egrep 
+           ${0##*/} dvipdf egrep
+           ${0##*/} dvipdf | less
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ case $1 in 
+   -h | --help)
+    help
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}", version 0.2, 01.10.2008 by C. Junghans
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' - ignored
+   shift ;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo $usage
+  echo Help with -h
+  exit 1
+fi
+
+for i in $*; do
+ name=$(readlink -f $(type -p $i))
+ if [ -z "$name" ]; then
+  echo \"$i\" not found, try \"type $i\"!
+  echo \(because you are in a interactive shell\)!
+  exit
+ else
+  echo -----------------------------------------------------
+  echo Content of $i \($name\)
+  echo -----------------------------------------------------
+  if [ -z "$(file -L $name | grep 'executable')" ]; then
+   cat $name
+  else
+   echo $i is a binary
+  fi
+ fi
+done
+#fs md5sum f999c3ca3a0a99b7805307d0fad6abf0

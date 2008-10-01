@@ -1,0 +1,33 @@
+#! /usr/bin/perl -w
+# cpu info script
+#
+# (C) 2007 Chr. Junghans
+
+use strict;
+
+my $nr=0;
+my $cpuname;
+my $speed;
+open(CPUINFO,"cat /proc/cpuinfo |");
+while (<CPUINFO>){
+	if($_ =~ /model name\t: (.*)$/)	{
+		$cpuname=$1;
+		$nr++;
+	}
+	($_ !~ /cpu MHz\t\t: (.*)$/) or $speed=$1;
+}
+close(CPUINFO);
+($nr == 0) or print $nr." x '".$cpuname."' at ".$speed." MHz ";
+
+my $mem=0;
+open(MEMINFO,"cat /proc/meminfo |");
+while (<MEMINFO>){
+	if ($_ =~ /MemTotal: *(\d*) kB$/){
+		$mem=$1;
+		$mem/=1024*1024;
+		last;
+	} 
+}
+close(MEMINFO);
+($mem==0) or printf (" with %.2f GB RAM",$mem);
+print "\n";
