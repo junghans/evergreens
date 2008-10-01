@@ -1,0 +1,151 @@
+#! /bin/bash
+#C. Junghans
+#This script was motivated by Thomas Kahle (www.pi-ist-genau-3.de)
+#who has a guard script of his friend Georg, which was much to 
+#complikated for me !
+
+#version 0.9  19.09.07 -- added --xpdf
+#version 0.10 10.10.07 -- allowing short opts
+#version 0.11 18.10.07 -- remove string bug in short opts
+#version 0.12 06.02.08 -- remove base name
+#version 0.13 06.03.08 -- add --self
+#version 0.14 16.04.08 -- better version system
+
+usage="Usage: ${0##*/} file1 <file2> ..."
+runcom="make"
+quiet="no"
+xpdf=""
+let waittime=3
+
+help () {
+  cat << eof
+Run a command if file is changed
+$usage
+OPTIONS:
+-e, --exec COMMAND  Run the command COMMAND
+                    Default: $runcom
+-t, --time SEC      Wait SEC secs until run command
+                    Default: $waittime
+-s, --self          Add first file to command
+-q, --quiet         Be a little bit quiet
+    --xpdf          Start xpdf for "file1.pdf"
+-h, --help          Show this help
+-v, --version       Show version
+
+Examples:  ${0##*/} bla.tex
+           ${0##*/} -e "make -f other_makefile" some_file
+           ${0##*/} -e "povray +A -W800 -H600 file.pov" file.pov
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    if [ "${1#-[et]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in 
+   -e | --exec)
+    runcom=$2
+    shift 2;;
+   -t | --time)
+    let waittime=$2
+    if [ ! "$waittime" -gt 0 ]; then
+      echo Argument of -t should be int and bigger than 0
+      exit 1
+    fi
+    shift 2;;
+   -q | --quiet)
+    quiet="yes"
+    shift ;;
+   -s | --self)
+    self="yes"
+    shift ;;
+   --xpdf)
+    xpdf="yes"
+    shift ;;
+   -h | --help)
+    help
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' - ignored
+   shift ;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo No file given !
+  echo $usage
+  echo Help with -h
+  exit 1
+fi
+
+if [ "$runcom" = "make" ]; then
+  if [ ! -r "Makefile" ]; then
+    echo No Makefile found
+    echo Help with -h
+    exit 1;
+  fi
+fi
+
+if [ "$self" = "yes" ]; then
+   runcom="$runcom $1"
+fi
+
+let i=0
+for myfile do
+  filename[$i]=$myfile
+  if [ ! -r $myfile ]; then
+    echo $myfile not found or readable
+    exit 1;
+  else
+    modtime[$i]=$(ls -l --time-style=+%s $myfile | awk '{print $6}' )
+  fi
+  shift
+  let i++
+done
+
+echo Guarding files ${filename[*]}
+echo for doing \"$runcom\" every $waittime secs
+
+$runcom
+
+if [ "$xpdf" = "yes" ]; then
+   pdfname="${filename[0]%tex}pdf"
+   echo Starting xpdf $pdfname
+   if [ -r "$pdfname" ]; then
+      xpdf ${filename[0]%tex}pdf &
+   else
+     echo Error PDF not found - try without --xpdf or check name!
+     exit
+   fi
+fi
+
+echo ${0##*/} is waiting...  
+while true; do
+  sleep $waittime
+  run="no"
+  if [ "$quiet" = "no" ]; then
+    echo ${0##*/} is waiting...  
+  fi
+  for (( i=0;i<${#filename[*]};i++)); do
+    let newmodtime=$(ls -l --time-style=+%s ${filename[$i]} | awk '{print $6}' )
+    if [ "$newmodtime" -ne "${modtime[$i]}" ]; then
+      echo \"${filename[$i]}\" was changed!
+      let modtime[$i]=$newmodtime
+      run="yes"
+    fi
+  done
+  if [ "$run" = "yes" ]; then
+    $runcom
+    echo ${0##*/} is waiting...
+  fi
+done
+#fs md5sum e54ec7077bf4216fbddc3c0d901cff8c
