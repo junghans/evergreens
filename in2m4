@@ -1,0 +1,65 @@
+#! /usr/bin/awk -f
+
+BEGIN{
+   #Version check, use gawk only !
+   "awk --version" | getline version;
+   if ( version !~ /GNU Awk/)
+   {
+            print "#WARING: This is not gawk (GNU awk). Could cause problem!" > "/dev/stderr";
+   }
+   print "#This is in2m4 0.4 (02.10.08) -> help with \"in2m4 -- --help\"";
+   #parse header
+   if ( ARGV[1] == "--help" ) {
+      print "in2m4 convert a table (.in file) in m4 syntax\n";
+      print "in-file should look like this:";
+      print "#SIMNAME VAR1 VAR2"
+      print "SIM1 0 1"
+      print "SIM2 0 2\n"
+      print "SIM1 are then the name of the simulations and VAR1, VAR2 are the macro to be replaced by m4"
+      print "The main usage is something like (in bash):\n";
+      print "for sim in $(in2m4 parameter.in | grep -v \"^#\"); do";
+      print "    {in2m4 -v SIMNAME=$sim parameter.in && cat template; } | m4 > file_$sim;";
+      print "done\n"
+      print "in2m4 will just show all possilbe simnames";
+      print "in2m4 with -v SIMNAME=XXX options will make in2m4 show the m4 macro for XXX instead of all simnames";
+      exit
+   }
+   getline;
+   if ( $1 != "#SIMNAME"){
+      print "First line should be #SIMNAME" > "/dev/stderr";
+      exit;
+   }
+   maxcol=NF+1;
+   colname[1]="SIMNAME";
+   for (i=2;i<maxcol;i++){
+      colname[i]=$i;
+   }
+   if (SIMNAME==""){
+      SIMNAME="ALL";
+      print "#Setting SIMNAME to",SIMNAME,"(use option \"-v SIMNAME=X\" to change)";
+      print "#List of possible SIMNAME"; 
+   }
+   else
+   {
+      print "#Searching for SIMNAME=",SIMNAME;
+   }
+}
+
+/^#/{
+   next;
+}
+
+(SIMNAME == "ALL"){
+   print $1;
+}
+
+($1 == SIMNAME){
+   if (NF+1 < maxcol) {
+      print "Not engough cols in line",NR > "/dev/stderr";
+      exit;
+   }
+   for (i=1;i<maxcol;i++){
+         printf("define(%s,%s)\n",colname[i],$i);
+   }
+   exit;
+}
