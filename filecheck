@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+# (C) 2007 Chr. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  ,XX.XX.XX -- initial version
+#version 0.2  ,XX.XX.XX -- added --algo and --comment and --remove
+#version 0.3  ,16.04.08 -- better version system
+
+usage="${0##*/} [OPTIONS] file1 file2 ..."
+update="no"
+remove="no"
+co="#"
+algo="md5sum"
+linestart="fs"
+
+help () {
+  cat << eof
+Check fs md5sum in last line and update this
+$usage
+OPTIONS:
+-u, --update        update checksum instead of checking
+-r, --remove        remove checksum instead of checking
+-c, --comment C     use C as comment character
+                    default: "$co"
+-a, --algo COMMAND  use COMMAND to generate checksum
+                    default: "$algo"
+-h, --help          Show this help
+-v, --version       Show version
+
+Examples:  ${0##*/} -c "%" bla.tex
+           ${0##*/} -a sha1sum somefile
+           ${0##*/} -u somefile
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    if [ "${1#-[ac]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in
+   -u |--update)
+    update="yes"
+    shift ;;
+   -r |--remove)
+    remove="yes"
+    shift ;;
+   -c |--comment)
+    co="$2"
+    shift 2;;
+   -a |--algo)
+    algo="$2"
+    shift 2;;
+   -h | --help)
+    help
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' - ignored
+   shift ;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo No file given !
+  echo $usage
+  echo Help with -h
+  exit 1
+fi
+
+if [ -z $(type -p $algo) ]; then
+   echo Checksum program \($algo\) not found !
+   exit 1
+fi
+
+for myfile in $*; do
+    if [ ! -r "$myfile" ]; then
+       echo File \"$myfile\" is not readable - Skipping !
+       continue
+    fi
+    lastline=$(sed -n '$p' $myfile)
+    if [ "$remove" = "yes" ]; then
+       if [ -z "${lastline##${co}${linestart} *}" ]; then
+          sed -i '$d' $myfile
+          echo checksum for file \"$myfile\" removed!
+       else
+          echo No checksum found in file \"$myfile\" \(try --update\)!
+       fi
+       continue
+    fi
+    if [ "$update" = "yes" ]; then
+       if [ -z "${lastline##${co}${linestart} *}" ]; then
+          sed -i '$d' $myfile
+       fi
+       #sed '$a\' is a trick to overcome missing \n in the lastline
+       newchecksum="$(sed '$a\' $myfile | $algo | awk '{print $1}')"
+       lastline="${co}${linestart} ${algo} $newchecksum"
+       sed -i "\$a\\$lastline" $myfile
+       echo checksum \($algo\) for file \"$myfile\" updated!
+       continue
+    fi
+    #file already has a md5sum line at the end
+    if [ -z "${lastline##${co}${linestart} *}" ]; then
+       algo="$(echo $lastline | awk '{print $2}')"
+       checksum="$(echo $lastline | awk '{print $3}')"
+       newchecksum="$(sed '$d' $myfile | $algo | awk '{print $1}')"
+       if [ "$newchecksum" = "$checksum" ]; then
+          echo checksum \($algo\) for file \"$myfile\" correct!
+       else
+          echo checksum \($algo\) for file \"$myfile\" NOT correct!
+       fi
+    #no md5sum found
+    else
+       echo No checksum found in file \"$myfile\" \(try --update\)!
+    fi
+done
+#fs md5sum 21bcf7169af426bd2654ee696148252e
