@@ -1,0 +1,22 @@
+#! /bin/bash
+
+host="junghans@login.mpip-mainz.mpg.de"
+path=${PWD##*/}
+
+if [ -z "$1" ]; then
+   $0 --help
+   exit 0
+fi
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+   cat <<EOF
+Usage: ${0##*/} [push|pull]
+
+This is wrapper to push or pull hg repo to ${host##*@}
+with user ${host%%@*}.
+EOF
+fi
+
+echo Using \"$path\" as reponame
+echo Operation: $1
+hg $1 ssh://$host/hgrepos/$path
