@@ -1,7 +1,7 @@
 #! /bin/bash
 
 host="junghans@login.mpip-mainz.mpg.de"
-path=${PWD##*/}
+repobase="hgrepos"
 
 if [ -z "$1" ]; then
    $0 --help
@@ -10,13 +10,35 @@ fi
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
    cat <<EOF
-Usage: ${0##*/} [push|pull]
+Usage: ${0##*/} push|pull|clone [name]
 
 This is wrapper to push or pull hg repo to ${host##*@}
-with user ${host%%@*}.
+with login ${host%%@*}.
 EOF
+   exit 0
 fi
 
-echo Using \"$path\" as reponame
+if [ "$1" = "cloneto" ]; then
+   op="clone ."
+else
+   op=$1
+fi
+
+if [ "$op" = "clone" ]; then
+   [[ -n "$2" ]] || { echo clone needs a name; exit 1; }
+else
+   path=$(hg root)
+   [[ $? -eq 0 ]] || exit 1
+   cd $path
+fi
+  
+if [ -n "$2" ]; then
+   name=$2
+else
+   name=${path##*/}
+fi
+   
+echo Reponame: $name
 echo Operation: $1
-hg $1 ssh://$host/hgrepos/$path
+
+hg $op ssh://$host/$repobase/$name
