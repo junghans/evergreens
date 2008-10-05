@@ -10,7 +10,7 @@ fi
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
    cat <<EOF
-Usage: ${0##*/} push|pull|clone [name]
+Usage: ${0##*/} push|pull|clone|cloneto [name]
 
 This is wrapper to push or pull hg repo to ${host##*@}
 with login ${host%%@*}.
