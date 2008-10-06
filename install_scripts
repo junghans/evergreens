@@ -3,6 +3,7 @@
 
 #version 0.1  05.10.08 -- initial version
 #version 0.2  06.10.08 -- added filelist, when missing source_file
+#version 0.3  06.10.08 -- allow lines with # in source_file
 
 usage="Usage: ${0##*/} dir"
 quiet="no"
@@ -84,7 +85,7 @@ fi
 dir=${1%/}
 
 if [ -f "$dir/$source_file" ]; then
-   filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$dir/$source_file" | sed "1d;\$d;s#^#$dir/#")
+   filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$dir/$source_file" | sed "/^#/d;1d;\$d;s#^#$dir/#")
 else
    filelist=$(find -L $dir -type f -perm "-u=xr" \! -name "*~")
 fi
