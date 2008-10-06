@@ -1,0 +1,77 @@
+#! /bin/bash
+
+#(C) 2008 C. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  06.10.08 -- initial version
+
+usage="Usage: ${0##*/} host"
+lines=20
+
+number_check(){
+number="$1"
+option="$2"
+if [ -z "$number" ] || [ -n "${number//[0-9]}" ]; then
+   echo argument after $option should be a number
+   exit 1
+fi
+}
+
+show_help () {
+  cat << eof
+This is a remote version of top
+$usage
+OPTIONS:
+-l, --lines NUMBER  Change number of lines to show
+                    Default: $lines
+-h, --help          Show this help
+-v, --version       Show version
+    --hg            Show last log message for hg (or cvs)
+
+You need sshkeys or the password is asked.
+This does more or less the same as:
+ssh HOST "top -b -n 1" | tail -20
+
+Examples:  ${0##*/} $HOSTNAME
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    #short opt with arguments here: l 
+    if [ "${1#-[l]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in 
+   -l | --lines)
+    number_check "$2" "--lines"
+    lines=$2
+    shift 2;;
+   -h | --help)
+    show_help
+    exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' 
+   exit 1;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo No host given ! >&2
+  echo $usage >&2
+  echo Help with -h >&2
+  exit 1
+fi
+
+ssh $1 "top -b -n 1" | head -$lines
