@@ -104,5 +104,5 @@ fi
 
 for myfile in $filelist; do
    [[ -f $myfile ]] || { echo File \"${myfile##*/}\" not found >&2; exit 1; }	
-   echo $cmd $opts $myfile .
+   $cmd $opts $myfile .
 done
