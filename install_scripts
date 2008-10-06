@@ -1,9 +1,10 @@
 #! /bin/bash
 #C. Junghans
 
-#version 0.1  05.10.08 -- initial version
-#version 0.2  06.10.08 -- added filelist, when missing source_file
-#version 0.3  06.10.08 -- allow lines with # in source_file
+#version 0.1   05.10.08 -- initial version
+#version 0.2   06.10.08 -- added filelist, when missing source_file
+#version 0.3   06.10.08 -- allow lines with # in source_file
+#version 0.3.1 06.10.08 -- typo in help
 
 usage="Usage: ${0##*/} dir"
 quiet="no"
@@ -17,7 +18,7 @@ Install all script FROM a dir to .
 $usage
 OPTIONS:
 -c, --command XX    Change operation: 
-                    Default: $oper
+                    Default: $cmd
 -i                  Ask before override
 -q, --quiet         Be a little bit quiet
 -h, --help          Show this help
