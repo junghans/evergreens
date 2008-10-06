@@ -4,10 +4,12 @@
 # junghans@mpip-mainz.mpg.de
 
 #version 0.1  06.10.08 -- initial version
+#version 0.2  06.10.08 -- added --testing option
 
 usage="Usage: ${0##*/} WHERE"
 opts="-v -f"
 cmd="ln -s"
+echo=""
 
 help () {
   cat << eof
@@ -16,6 +18,7 @@ $usage
 OPTIONS:
 -c,  --command CMD  Change the operation to do
                     Default: "$command"
+-t, --testing       Will only echo the commands to do
 -i, --interactive   Be interactive
 -q, --quiet         Be a little bit quiet
 -h, --help          Show this help
@@ -44,6 +47,9 @@ while [ "${1#-}" != "$1" ]; do
  case $1 in 
    -i | --interactive)
     opts=${opts/-f/-i}
+    shift ;;
+   -t | --testing)
+    echo="echo"
     shift ;;
    -q | --quiet)
     opts=${opts/-v/}
@@ -79,4 +85,4 @@ aim=$1
 
 thisdir=$PWD
 cd $aim
-find -L $thisdir -type f -perm "-u=xr" \! -name ${0##*/} \! -name "*~" -exec $cmd $opts {} . \;
+find -L $thisdir -type f -perm "-u=xr" \! -name ${0##*/} \! -name "*~" -exec $echo $cmd $opts {} . \;
