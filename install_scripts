@@ -2,27 +2,33 @@
 #C. Junghans
 
 #version 0.1  05.10.08 -- initial version
+#version 0.2  06.10.08 -- added filelist, when missing source_file
 
 usage="Usage: ${0##*/} dir"
 quiet="no"
 opts="-f -v"
-oper="cp -s"
+cmd="ln -s"
 source_file="README"
 
 help () {
   cat << eof
-Install all script from a dir
+Install all script FROM a dir to .
 $usage
 OPTIONS:
-    --operation XX  Change operation: 
+-c, --command XX    Change operation: 
                     Default: $oper
 -i                  Ask before override
 -q, --quiet         Be a little bit quiet
 -h, --help          Show this help
 -v, --version       Show version
 
-Examples:  ${0##*/} \$MYOPT/bin 
-           ${0##*/} -q \$HOME
+This allows you to use local path. The files to
+install will be determined by the FILES_TO_INSTALL
+section in $source_file or use all scripts there
+
+Examples:  ${0##*/} -c cp \$MYOPT/bin 
+           ${0##*/} -q ../scripts
+
 
 Send bugs and comment to junghans@mpip-mainz.mpg.de
 eof
@@ -30,16 +36,16 @@ eof
 
 while [ "${1#-}" != "$1" ]; do
  if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
-    if [ "${1#-[et]}" != "${1}" ]; then
+    if [ "${1#-[c]}" != "${1}" ]; then
        set -- "${1:0:2}" "${1:2}" "${@:2}"
     else
        set -- "${1:0:2}" "-${1:2}" "${@:2}"
     fi
  fi
  case $1 in 
-   --operation)
+   -c | --command)
     if [ -n "$2" ]; then
-       oper=$2
+       cmd=$2
     else
        echo No operation given
        exit 1
@@ -50,6 +56,7 @@ while [ "${1#-}" != "$1" ]; do
     shift ;;
    -q | --quiet)
     opts=${opts/-v/}
+    quiet="yes"
     shift ;;
    -h | --help)
     help
@@ -73,19 +80,27 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-[[ -d $1 ]] || { echo $mydir is not a dir >&2; exit 1; }
+[[ -d $1 ]] || { echo \"$dir\" is not a dir >&2; exit 1; }
+dir=${1%/}
 
-[[ -f "$1/$source_file" ]] || { echo Source file not found >&2; exit 1; }
+if [ -f "$dir/$source_file" ]; then
+   filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$dir/$source_file" | sed "1d;\$d;s#^#$dir/#")
+else
+   filelist=$(find -L $dir -type f -perm "-u=xr" \! -name "*~")
+fi
 
-filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$1/$source_file" | sed '1d;$d')
 [[ -n "$filelist" ]] || { echo Error: empty filelist >&2; exit 1; }
 
 if [ "$quiet" = "no" ]; then
-   echo Files to install: $filelist
-   echo Where to install: $1
+   echo -n "Files to install: "
+   for myfile in $filelist; do
+       echo -n "${myfile##*/} "
+   done
+   echo
+   echo From where to install: $dir
 fi
 
 for myfile in $filelist; do
-   [[ -f $1/$myfile ]] || { echo File \"$myfile\" not found >&2; exit 1; }	
-   echo $oper $opts $1/$myfile $myfile
+   [[ -f $myfile ]] || { echo File \"${myfile##*/}\" not found >&2; exit 1; }	
+   echo $cmd $opts $myfile .
 done
