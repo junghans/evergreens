@@ -12,13 +12,10 @@ findgrep   - find + grep
 fvim       - far vim
 guard      - run a command, when file is changed
 hgdiff     - make hg use tkdiff
-hglogin    - push and pull hg repo to the login server
 in2m4      - convert in file to m4 syntax
 install.sh - install script
-myhgcommit - commit a file to hg repo with automatic msg
 qtar       - quick tar, make a tarball of dir with date
 README     - this readme
-rm_broken_links - clear
 sendto     - a small script around mail to send many files
 tkdiff     - a diff using tk with hg support
 
@@ -31,11 +28,8 @@ findgrep
 fvim
 guard
 hgdiff
-hglogin
 in2m4
-myhgcommit
 qtar
-rm_broken_links
 sendto
 tkdiff
 END_FILES_TO_INSTALL
