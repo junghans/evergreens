@@ -6,6 +6,7 @@
 #version 0.1  06.10.08 -- initial version
 #version 0.2  06.10.08 -- added --testing option
 #version 0.3  06.10.08 -- added source_file support
+#version 0.4  07.10.08 -- changed help
 
 usage="Usage: ${0##*/} WHERE"
 opts="-v -f"
@@ -28,10 +29,9 @@ OPTIONS:
 -v, --version       Show version
     --hg            Show last log message for hg (or cvs)
 
-This will produce global links, to produce local links use
-install_scripts (from the evergreen repo). The files to
-install can also be determined by the FILES_TO_INSTALL
-section in $source_file.
+This will produce global links. The files to
+install will be determined by the FILES_TO_INSTALL
+section in $source_file or all files are installed.
 
 Examples:  ${0##*/} -ic cp $HOME/bin
            ${0##*/} \$HOME
