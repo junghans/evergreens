@@ -7,6 +7,7 @@
 #version 0.2  06.10.08 -- added --testing option
 #version 0.3  06.10.08 -- added source_file support
 #version 0.4  07.10.08 -- changed help
+#version 0.5  08.10.08 -- do not install missing files
 
 usage="Usage: ${0##*/} WHERE"
 opts="-v -f"
@@ -107,5 +108,9 @@ if [ "$quiet" = "no" ]; then
 fi
 
 for myfile in $filelist; do
-   $echo $cmd $opts $myfile .
+   if [ -f $myfile ]; then
+      $echo $cmd $opts $myfile .
+   else
+      echo $myfile was not there >&2
+   fi
 done
