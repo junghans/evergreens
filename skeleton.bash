@@ -8,7 +8,7 @@
 usage="Usage: ${0##*/} XXX"
 quiet="no"
 
-help () {
+show_help () {
   cat << eof
 This is a skeleton script
 $usage
@@ -39,7 +39,7 @@ while [ "${1#-}" != "$1" ]; do
     opts=${opts/-v/}
     shift ;;
    -h | --help)
-    help
+    show_help
     exit 0;;
    --hg)
     echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
