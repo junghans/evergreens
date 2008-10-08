@@ -11,7 +11,6 @@ filecheck  - add hash stamp to a file and check it
 findgrep   - find + grep
 fvim       - far vim
 guard      - run a command, when file is changed
-hgdiff     - make hg use tkdiff
 in2m4      - convert in file to m4 syntax
 install.sh - install script
 qtar       - quick tar, make a tarball of dir with date
@@ -27,7 +26,6 @@ filecheck
 findgrep
 fvim
 guard
-hgdiff
 in2m4
 qtar
 sendto
