@@ -1,0 +1,146 @@
+#! /bin/bash
+
+#(C) 2008 C. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  09.10.08 -- initial version
+
+usage="Usage: ${0##*/} adress script"
+quiet="no"
+print="no"
+run="yes"
+template="_XXX"
+name=""
+head="1p;"
+
+check_script() {
+[[ -z "$1" ]] && { echo No script given >&2; exit 1; }
+[[ -f "$1" ]] || { echo Script \"$1\" not found >&2; exit 1; }
+}
+
+list_script() {
+check_script "$1"
+cat -n $1
+}
+
+number_check() {
+if [ -z "$1" ]; then
+   echo number expected >&2;
+   exit 1;
+fi
+if [ -n "${1//[0-9]}" ]; then
+   echo $1 is not a number >&2;
+   exit 1;
+fi
+}
+
+show_help () {
+  cat << eof
+Run part of a script
+$usage
+OPTIONS:
+-l                  List script with line numbers
+-p, --print         Just print the part of the script
+    --norun         Just build to do not run
+    --nohead        Do not copy first line
+-n, --name   NAME   Given name of the new script
+                    Default: \$(mktemp script$template)
+-q, --quiet         Be a little bit quiet
+-h, --help          Show this help
+-v, --version       Show version
+    --hg            Show last log message for hg (or cvs)
+
+ADRESS:
+n,m                 from line n to line m.
+n                   from line to end
+
+Examples:  ${0##*/} 10 script
+           ${0##*/} 10,20 script
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    #short opt with arguments here: fc
+    if [ "${1#-[fc]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in 
+   --norun)
+    run="no"
+    shift;;
+   --nohead)
+    head=""
+    shift;;
+   -l)
+    list_script "$2"
+    exit 0;;
+   -q | --quiet)
+    quiet="yes"
+    shift ;;
+   -p | --print)
+    name="/dev/stdout"
+    run="no"
+    shift ;;
+   -n | --name)
+    name="$2"
+    shift 2;;
+   -h | --help)
+    show_help
+    exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' 
+   exit 1;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo No adress given ! >&2
+  echo $usage >&2
+  echo Help with -h >&2
+  exit 1 >&2
+fi
+
+if [ -z "${1/*,*}" ]; then
+   startline=${1%,*}
+   number_check "$startline"
+   endline=${1#*,}
+   number_check "$endline"
+else
+   startline=$1
+   number_check "$startline"
+   endline="$"
+fi
+shift
+
+check_script "$1"
+script=$1
+
+if [ -z "$name" ]; then
+   if [ -n $(type -p mktemp) ]; then
+      name=$(mktemp ${script}${template}) || { echo mktemp could not generate file >&2; exit 1; }
+   else
+      echo No mktemp found >&2
+      name=${script}_part
+   fi
+fi
+
+sed -n "${head}${startline},${endline}p" $script > $name
+
+[[ "$name" = "/dev/stdout" ]] || chmod 755 $name
+
+if [ "$run" = "yes" ]; then
+  $name
+  rm $name
+fi
