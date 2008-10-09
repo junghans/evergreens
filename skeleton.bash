@@ -36,7 +36,7 @@ while [ "${1#-}" != "$1" ]; do
  fi
  case $1 in 
    -q | --quiet)
-    opts=${opts/-v/}
+    quiet="yes"
     shift ;;
    -h | --help)
     show_help
