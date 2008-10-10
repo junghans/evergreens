@@ -17,8 +17,12 @@ qtar       - quick tar, make a tarball of dir with date
 README     - this readme
 sendto     - a small script around mail to send many files
 tkdiff     - a diff using tk with hg support
+execpart   - run a part of a script
+rtop       - remote top
 
 FILES_TO_INSTALL
+rtop
+execpart
 cpuinfo
 cvc
 fcat
