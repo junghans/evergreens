@@ -3,7 +3,8 @@
 #(C) 2008 C. Junghans
 # junghans@mpip-mainz.mpg.de
 
-#version 0.1  09.10.08 -- initial version
+#version 0.1   09.10.08 -- initial version
+#version 0.1.1 10.10.08 -- bug in execute
 
 usage="Usage: ${0##*/} adress script"
 quiet="no"
@@ -141,6 +142,6 @@ sed -n "${head}${startline},${endline}p" $script > $name
 [[ "$name" = "/dev/stdout" ]] || chmod 755 $name
 
 if [ "$run" = "yes" ]; then
-  $name
+  ./$name
   rm $name
 fi
