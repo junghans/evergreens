@@ -19,8 +19,10 @@ sendto     - a small script around mail to send many files
 tkdiff     - a diff using tk with hg support
 execpart   - run a part of a script
 rtop       - remote top
+loggrep    - warapper to grep words from a log
 
 FILES_TO_INSTALL
+loggrep
 rtop
 execpart
 cpuinfo

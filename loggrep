@@ -1,0 +1,21 @@
+#! /bin/bash
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+   cat <<EOF
+This is a wrapper for
+     'perl -ne "print \"\$1\n\" if /"\$1"(.*?)"\$2"/" \${@:2};'
+It greps whatever is between two pattern.
+Exaples: ${0##*/} p= ; log123
+EOF
+   exit 0
+fi
+
+if [ -z "$3" ]; then
+   echo Error ${0##*/} needs 3 arguments >&2
+   echo Help with ${0##*/} -h >&2
+   exit 1
+fi
+
+
+echo "#Doing: perl -ne 'print \"\$1\n\" if /$1(.*?)$2/' ${@:3}" >&2
+perl -ne "print \"\$1\n\" if /$1(.*?)$2/" ${@:3}
