@@ -8,6 +8,7 @@
 #version 0.3  06.10.08 -- added source_file support
 #version 0.4  07.10.08 -- changed help
 #version 0.5  08.10.08 -- do not install missing files
+#version 0.6  17.10.08 -- wrong help
 
 usage="Usage: ${0##*/} WHERE"
 opts="-v -f"
@@ -22,7 +23,7 @@ This is a simple install script
 $usage
 OPTIONS:
 -c,  --command CMD  Change the operation to do
-                    Default: "$command"
+                    Default: "$cmd"
 -t, --testing       Will only echo the commands to do
 -i, --interactive   Be interactive
 -q, --quiet         Be a little bit quiet
