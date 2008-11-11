@@ -1,0 +1,98 @@
+#!/bin/bash
+
+#(C) 2008 C. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  11.11.08 -- initial version
+
+workcopy="no"
+usage="Usage: ${0##*/} [OPTIONS] /path/to/repo1 [/path/to/repo2]"
+rev1="tip"
+rev2="tip"
+diff="diff -Nua"
+status="-marc"
+show_help() {
+   cat <<EOF
+$usage
+This is wrapper to diff two repos. If path2 is ommitted local repo is compare to path1
+
+OPTIONS:
+    --wc            Only compare working copy
+    --r1 XX         Use rev XX for repo1
+                    Default: $rev1
+    --r2 XX         Use rev XX for repo2
+                    Default: $rev2
+    --diff CMD      Change diff command
+                    Default: $diff
+    --status XY     Change file status options
+                    Default: $status
+                    (See hg status --help)
+-h, --help          Show this help
+-v, --version       Show version
+    --hg            Show last log message for hg (or cvs)
+
+Examples:  ${0##*/} -r1 -r2 ../repo
+           ${0##*/}
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+EOF
+   exit 0
+}
+
+shopt -s extglob
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    #short opt with arguments here: fc
+    if [ "${1#-[fc]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in 
+   --wc)
+    workcopy="yes"
+    shift ;;
+   -h | --help)
+    show_help
+    exit 0;;
+   -r1)
+    rev1="$2"
+    shift 2;;
+   -r2)
+    rev2="$2"
+    shift 2;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
+    exit 0;;
+  *)
+   echo Unknown option \'$1\' 
+   exit 1;;
+ esac
+done
+
+if [ -z "$1" ]; then
+   echo Missiing repo name > /dev/stderr
+   exit 0
+fi
+
+if [ -z "$2" ]; then
+   path1=$(hg -R . root) || exit 1
+   path2=$(hg -R $1 root) || exit 1
+   shift
+else
+   path1=$(hg -R $1 root) || exit 1
+   path2=$(hg -R $2 root) || exit 1
+   shift 2
+fi
+
+for file in $(hg --cwd $path1 status -n $status); do
+   if [ "$workcopy" = "no" ]; then
+      $diff <(hg --cwd $path1 cat -r $rev2 $file) <(hg --cwd $path2 cat -r $rev2 $file)
+   else
+      $diff $path1/$file $path2/$file
+   fi
+done
