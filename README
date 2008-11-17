@@ -21,8 +21,10 @@ execpart   - run a part of a script
 rtop       - remote top
 loggrep    - warapper to grep words from a log
 hgrdiff    - wrapper to compare two hg repos 
+todo       - a simple todo list manager
 
 FILES_TO_INSTALL
+todo
 hgrdiff
 loggrep
 rtop
