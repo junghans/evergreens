@@ -1,0 +1,38 @@
+#! /bin/bash
+
+diff=tkdiff
+
+if [ -z "$1" ]; then
+   ${0##*/} --help
+   exit 0
+fi
+
+if [ "$1" == "--help" ]; then
+   echo Usage: ${0##*/} [git-options] file
+   echo See git-option with git diff --help
+   echo Version 0.1 - 08.01.09
+   exit 0
+fi
+
+filename=$1
+if [ -z "$filename" ]; then
+   echo Error: empty patch \(file not found or changes\)
+   exit 1
+fi
+
+if [ ! -r $filename ]; then
+   echo Error: File \"$filename\" not found
+   exit 1
+fi
+
+TMPFILE=$(mktemp)
+cp $filename $TMPFILE
+git diff $filename | sed '1,4d' | patch -s -R $TMPFILE
+if [ $? -ne 0 ]; then
+   echo Error: Could not apply patch
+   rm $TMPFILE
+   exit 1
+fi
+
+$diff -L "$filename (GIT PARENT)" -L "$filename (local)" $TMPFILE $filename 
+rm $TMPFILE

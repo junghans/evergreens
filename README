@@ -24,6 +24,7 @@ hgrdiff    - wrapper to compare two hg repos
 todo       - a simple todo list manager
 
 FILES_TO_INSTALL
+gitdiff
 todo
 hgrdiff
 loggrep
