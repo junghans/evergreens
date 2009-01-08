@@ -27,7 +27,7 @@ fi
 
 TMPFILE=$(mktemp)
 cp $filename $TMPFILE
-git diff $filename | sed '1,4d' | patch -s -R $TMPFILE
+git diff $filename | sed '1,2d' | patch -s -R $TMPFILE
 if [ $? -ne 0 ]; then
    echo Error: Could not apply patch
    rm $TMPFILE
