@@ -1,6 +1,6 @@
 #! /bin/bash
 
-#(C) 2008 C. Junghans
+#(C) 2008-2009 C. Junghans
 # junghans@mpip-mainz.mpg.de
 
 #version 0.1  06.10.08 -- initial version
@@ -9,6 +9,7 @@
 #version 0.4  07.10.08 -- changed help
 #version 0.5  08.10.08 -- do not install missing files
 #version 0.6  17.10.08 -- wrong help
+#version 0.7  17.03.09 -- added -s,-p
 
 usage="Usage: ${0##*/} WHERE"
 opts="-v -f"
@@ -26,6 +27,11 @@ OPTIONS:
                     Default: "$cmd"
 -t, --testing       Will only echo the commands to do
 -i, --interactive   Be interactive
+-s, --source FILE   Change the name of the file, which contains 
+                    the list of files to install between 
+                    FILES_TO_INSTALL and END_FILES_TO_INSTALL markers
+                    Default: $source_file
+-p, --plain         Same as -s " "
 -q, --quiet         Be a little bit quiet
 -h, --help          Show this help
 -v, --version       Show version
@@ -45,7 +51,7 @@ eof
 while [ "${1#-}" != "$1" ]; do
  if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
     #short opt with arguments here: c
-    if [ "${1#-[c]}" != "${1}" ]; then
+    if [ "${1#-[cs]}" != "${1}" ]; then
        set -- "${1:0:2}" "${1:2}" "${@:2}"
     else
        set -- "${1:0:2}" "-${1:2}" "${@:2}"
@@ -61,6 +67,12 @@ while [ "${1#-}" != "$1" ]; do
    -q | --quiet)
     opts=${opts/-v/}
     quiet="yes"
+    shift ;;
+   -s | --source)
+    source_file="$2"
+    shift 2;;
+   -p | --plain)
+    source_file=""
     shift ;;
    -c | --command)
     [[ -n "$(type -p "$2")" ]] || { echo Command \"$2\" not found; exit 1; }
@@ -93,10 +105,10 @@ aim=$1
 thisdir=$PWD
 cd $aim
 
-if [ -f "$thisdir/$source_file" ]; then
+if [ -n "$source_file" ] && [ -f "$thisdir/$source_file" ]; then
    filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$thisdir/$source_file" | sed "/^#/d;1d;\$d;s#^#$thisdir/#")
 else
-   filelist=$(find -L $thisdir -type f -perm "-u=xr" \! -name "*~")
+   filelist=$(find -L $thisdir -type f -perm "-u=xr" \! -name "*~" | grep -v "${0##*/}" )
 fi
 
 if [ "$quiet" = "no" ]; then
