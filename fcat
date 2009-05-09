@@ -24,7 +24,7 @@ while [ "${1#-}" != "$1" ]; do
     help
     exit 0;;
    -v | --version)
-    echo "${0##*/}", version 0.2, 01.10.2008 by C. Junghans
+    echo "${0##*/}", version 0.3, 09.05.2009 by C. Junghans
     exit 0;;
   *)
    echo Unknown option \'$1\' - ignored
@@ -45,9 +45,9 @@ for i in $*; do
   echo \(because you are in a interactive shell\)!
   exit
  else
-  echo -----------------------------------------------------
-  echo Content of $i \($name\)
-  echo -----------------------------------------------------
+#  echo -----------------------------------------------------
+#  echo Content of $i \($name\)
+#  echo -----------------------------------------------------
   if [ -z "$(file -L $name | grep 'executable')" ]; then
    cat $name
   else
