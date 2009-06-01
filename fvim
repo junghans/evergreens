@@ -1,9 +1,10 @@
 #! /bin/bash
 
-#version 0.1e 27.06.08 -- initial version
-#version 0.1f 16.04.08 -- better verion system
-#version 0.2  01.10.08 -- added readlink in the name
-VIM=vim70
+#version 0.1e   27.06.08 -- initial version
+#version 0.1f   16.04.08 -- better verion system
+#version 0.2    01.10.08 -- added readlink in the name
+#version 0.2.1  01.10.08 -- vim70 was outdated
+VIM=vim
 usage="Usage: ${0##*/} script <script2> ..."
 
 help () {
@@ -26,17 +27,19 @@ while [ "${1#-}" != "$1" ]; do
    -h | --help)
     help
     exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
    -v | --version)
     echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
     exit 0;;
   *)
-   echo Unknown option \'$1\' - ignored
+   echo "Unknown option '$1' - ignored"
    shift ;;
  esac
 done
 
 if [ -z "$1" ]; then
-	echo 
   echo Usage: ${0##*/} scriptname
   exit
 fi
@@ -44,8 +47,8 @@ fi
 for i in $*; do
  name=$(readlink -f $(type -p $i))
  if [ -z "$name" ]; then
-  echo \"$i\" not found, try \"type $i\"!
-  echo \(because you are in a interactive shell\)!
+  echo "'$i' not found, try 'type $i'!"
+  echo "(because you are in a interactive shell\)!"
   exit
  else
   if [ -z "$(file -L $name | grep 'executable')" ]; then
