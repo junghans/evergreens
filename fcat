@@ -1,14 +1,21 @@
 #! /bin/bash
 
+#version 0.3   09.05.09 -- initial version
+#version 0.4   14.08.09 -- better version + --viewer
+
 usage="Usage: ${0##*/} script <script2> ..."
+viewer=${0##*/f}
+viewer="$(type -p ${viewer:-less})"
 
 help () {
   cat << eof
 Show content of file after readlink
 $usage
 OPTIONS:
--h, --help      Show this help
--v, --version   Show version
+-v, --viewer CMD Change the viewer
+                 Default: $viewer
+-h, --help       Show this help
+-v, --version    Show version
 
 Examples:  ${0##*/} egrep 
            ${0##*/} dvipdf egrep
@@ -19,16 +26,22 @@ eof
 }
 
 while [ "${1#-}" != "$1" ]; do
- case $1 in 
+ case $1 in
+   -v | --viewer)
+    viewer="$2"
+    shift 2;; 
    -h | --help)
     help
     exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
    -v | --version)
-    echo "${0##*/}", version 0.3, 09.05.2009 by C. Junghans
+    echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
     exit 0;;
   *)
-   echo Unknown option \'$1\' - ignored
-   shift ;;
+   echo "Unknown option '$1' - ignored" >&2
+   exit 1 ;;
  esac
 done
 
@@ -38,21 +51,19 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+if [ -z "$viewer" ]; then
+  echo NO vim found, use --viewer option >&2
+  exit 1
+fi
+
 for i in $*; do
- name=$(readlink -f $(type -p $i))
- if [ -z "$name" ]; then
-  echo \"$i\" not found, try \"type $i\"!
-  echo \(because you are in a interactive shell\)!
-  exit
+  name=$(readlink -f $(type -p $i))
+  if [ -z "$name" ]; then
+   echo "'$i' not found, try 'type $i'!"
+   echo "(because you are in a interactive shell)!"
+   exit
  else
-#  echo -----------------------------------------------------
-#  echo Content of $i \($name\)
-#  echo -----------------------------------------------------
-  if [ -z "$(file -L $name | grep 'executable')" ]; then
-   cat $name
-  else
-   echo $i is a binary
+   $viewer $name
   fi
- fi
 done
-#fs md5sum f999c3ca3a0a99b7805307d0fad6abf0
+
