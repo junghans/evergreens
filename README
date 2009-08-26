@@ -7,7 +7,8 @@ Content:
 cpuinfo    - show info on installed cpu
 cvc        - Christoph's Version Control
 fcat       - far cat
-fcat       - far less
+fless      - far less
+fview      - far view
 filecheck  - add hash stamp to a file and check it
 findgrep   - find + grep
 fvim       - far vim
@@ -36,6 +37,7 @@ cpuinfo
 cvc
 fcat
 fless
+fview
 filecheck
 findgrep
 fvim
