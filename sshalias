@@ -1,0 +1,98 @@
+#! /bin/bash
+
+#(C) 2009 C. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  02.09.09 -- initial version
+
+usage="Usage: ${0##*/} [OPTIONS] alias1 [alias2] ..."
+quiet="no"
+add="no"
+ssh_dir="${HOME}/.ssh"
+ssh_config="config"
+
+show_help () {
+  cat << eof
+Creates an ssh alias
+$usage
+A alias should have the form:
+alias=user@hostname
+OPTIONS:
+-a  --add           Add the alias to your ssh-config
+-q, --quiet         Be a little bit quiet (just check if alias is valid)
+-h, --help          Show this help
+-v, --version       Show version
+    --hg            Show last log message for hg (or cvs)
+
+Examples:  ${0##*/} -q
+           ${0##*/}
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    #short opt with arguments here: fc
+    if [ "${1#-[fc]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in
+   -a | --add)
+    add="yes"
+    shift ;;
+   -q | --quiet)
+    quiet="yes"
+    shift ;;
+   -h | --help)
+    show_help
+    exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
+    exit 0;;
+  *)
+   echo 'Unknown option "$1"'
+   exit 1;;
+ esac
+done
+
+if [ -z "$1" ]; then
+  echo No alias given ! >&2
+  echo $usage >&2
+  echo Help with -h >&2
+  exit 1 >&2
+fi
+
+if [ "$add" = "yes" ]; then
+  if [ ! -d "${ssh_dir}" ]; then 
+    mkdir -p "${ssh_dir}"
+    chmod 700 "${ssh_dir}"
+  fi
+  [[ -f "${ssh_dir}/${ssh_config}" ]] || touch "${ssh_dir}/${ssh_config}"
+fi
+
+for i in $*; do
+  if [ -n "${i/#*=*@*}" ]; then
+    [[ "${quiet}" = "yes" ]] || echo "Alias '$i' has the wrong form, should be 'alias=user@hostname'" >&2
+    exit 1
+  fi
+  alias=${i%%=*}
+  rest=${i##*=}
+  user=${rest%%@*}
+  host=${rest##*@}
+  [[ "${quiet}" = "no" ]] && [[ "${add}" = "no" ]] && echo -e "Host ${alias}\n\tUser ${user}\n\tHostname ${host}\n\n"
+  [[ "${add}" = "yes" ]] || continue
+  if [ -n "$(grep "Host ${alias}" "${ssh_dir}/${ssh_config}")" ]; then
+    [[ "${quiet}" = "yes" ]] || echo "Alias '${alias}' already exist in '${ssh_dir}/${ssh_config}' skipping"
+    continue
+  fi
+  echo -e "Host ${alias}\n\tUser ${user}\n\tHostname ${host}\n\n" >> "${ssh_dir}/${ssh_config}"
+  [[ "${quiet}" = "yes" ]] || echo "Added alias '${alias}' to '${ssh_dir}/${ssh_config}'"
+done
+

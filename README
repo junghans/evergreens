@@ -25,6 +25,7 @@ loggrep    - warapper to grep words from a log
 hgrdiff    - wrapper to compare two hg repos 
 todo       - a simple todo list manager
 vimless    - a better less, from vim
+sshalias   - creates ssh alias
 
 FILES_TO_INSTALL
 gitdiff
@@ -45,6 +46,7 @@ guard
 in2m4
 qtar
 sendto
+sshalias
 tkdiff
 vimless
 END_FILES_TO_INSTALL
