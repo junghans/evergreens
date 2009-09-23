@@ -1,22 +1,22 @@
 #! /bin/bash
-
 #(C) 2008-2009 C. Junghans
 # junghans@mpip-mainz.mpg.de
 
-#version 0.1  06.10.08 -- initial version
-#version 0.2  06.10.08 -- added --testing option
-#version 0.3  06.10.08 -- added source_file support
-#version 0.4  07.10.08 -- changed help
-#version 0.5  08.10.08 -- do not install missing files
-#version 0.6  17.10.08 -- wrong help
-#version 0.7  17.03.09 -- added -s,-p
+#version 0.1    06.10.08 -- initial version
+#version 0.2    06.10.08 -- added --testing option
+#version 0.3    06.10.08 -- added source_file support
+#version 0.4    07.10.08 -- changed help
+#version 0.5    08.10.08 -- do not install missing files
+#version 0.6    17.10.08 -- wrong help
+#version 0.7    17.03.09 -- added -s,-p
+#version 0.7.1  23.09.09 -- clean up + wildcard support
 
 usage="Usage: ${0##*/} WHERE"
-opts="-v -f"
-cmd="ln -s"
-echo=""
 quiet="no"
+opts="-f -v"
+cmd="ln -s"
 source_file="README"
+echo=""
 
 help () {
   cat << eof
@@ -75,7 +75,7 @@ while [ "${1#-}" != "$1" ]; do
     source_file=""
     shift ;;
    -c | --command)
-    [[ -n "$(type -p "$2")" ]] || { echo Command \"$2\" not found; exit 1; }
+    [[ -n "$(type -p "$2")" ]] || { echo "Command '$2'" not found; exit 1; }
     cmd="$2"
     shift 2;;
    -h | --help)
@@ -88,7 +88,7 @@ while [ "${1#-}" != "$1" ]; do
     echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
     exit 0;;
   *)
-   echo Unknown option \'$1\' 
+   echo "Unknown option '$1'"
    exit 1;;
  esac
 done
@@ -100,16 +100,19 @@ if [ -z "$1" ]; then
   exit 1 >&2
 fi
 
-[[ -d "$1" ]] || { echo Dir \"$1\" not found; exit 1; }
+[[ -d "$1" ]] || { echo "Dir '$1' not found"; exit 1; }
 aim=$1
 thisdir=$PWD
 cd $aim
 
 if [ -n "$source_file" ] && [ -f "$thisdir/$source_file" ]; then
    filelist=$(sed -n '/FILES_TO_INSTALL/,/END_FILES_TO_INSTALL/p' "$thisdir/$source_file" | sed "/^#/d;1d;\$d;s#^#$thisdir/#")
+   filelist="$(ls $filelist)"
 else
-   filelist=$(find -L $thisdir -type f -perm "-u=xr" \! -name "*~" | grep -v "${0##*/}" )
+   filelist=$(find -L $thisdir -type f -perm "-u=xr" \! -name "*~" \! -name "${0##*/}" )
 fi
+
+[[ -n "$filelist" ]] || { echo Error: empty filelist >&2; exit 1; }
 
 if [ "$quiet" = "no" ]; then
    echo -n "Files to install: "
@@ -121,9 +124,6 @@ if [ "$quiet" = "no" ]; then
 fi
 
 for myfile in $filelist; do
-   if [ -f $myfile ]; then
-      $echo $cmd $opts $myfile .
-   else
-      echo $myfile was not there >&2
-   fi
+   [[ -f $myfile ]] || { echo "File '${myfile##*/}' not found" >&2;  continue; }	
+   $echo $cmd $opts $myfile .
 done
