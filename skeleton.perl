@@ -15,7 +15,7 @@ my $usage="Usage: $progname [OPTIONS] FILE";
 #Defaults
 my $quiet=undef;
 
-while ((defined ($ARGV[0])) and ($ARGV[0] =~ /^\-/))
+while ((defined ($ARGV[0])) and ($ARGV[0] =~ /^-./))
 {
         if (($ARGV[0] !~ /^--/) and (length($ARGV[0])>2)){
            $_=shift(@ARGV);
