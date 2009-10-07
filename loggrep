@@ -2,20 +2,32 @@
 
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
    cat <<EOF
-This is a wrapper for
-     'perl -ne "print \"\$1\n\" if /"\$1"(.*?)"\$2"/" \${@:2};'
-It greps whatever is between two pattern.
+Usage: ${0##*/} key1 key2 [FILES..]
+
+If no files given it reads from stdin.
+
+It greps whatever is between two keys.
+In addition is support multiple matches per line
+Actually this is just a wrapper for
+     'perl -ne "print \"\$1\n\" if /"\$1"(.*?)"\$2"/" \${@:3};'
+
+Note: We are not using sed -n 's/\$1\(.*\)\$2/\1/p' due to the fact 
+that we want the SHORTEST pattern matching
+
 Exaples: ${0##*/} p= ; log123
+         ${0##*/} xx yy
+	 echo -e "hallo\n\nhello\nhallo hxxxo" | ${0##*/} h o
 EOF
    exit 0
 fi
 
-if [ -z "$3" ]; then
-   echo Error ${0##*/} needs 3 arguments >&2
+if [ -z "$2" ]; then
+   echo Error ${0##*/} needs at least 2 arguments >&2
    echo Help with ${0##*/} -h >&2
    exit 1
 fi
 
-
-echo "#Doing: perl -ne 'print \"\$1\n\" if /$1(.*?)$2/' ${@:3}" >&2
-perl -ne "print \"\$1\n\" if /$1(.*?)$2/" ${@:3}
+echo "#Doing: perl -ne 's/.*?$1(.*?)$2.*?\n?/\$1\n/g && print' ${@:3}" >&2
+#\n? removes the newline if there is one and add it a \n back to every match
+#only print if subituted made
+perl -ne "s/.*?$1(.*?)$2.*?\n?/\$1\n/g && print" ${@:3}
