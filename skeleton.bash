@@ -1,12 +1,20 @@
 #! /bin/bash
 
-#(C) 2008 C. Junghans
+#(C) 2009 C. Junghans
 # junghans@mpip-mainz.mpg.de
 
 #version 0.1  XX.XX.XX -- initial version
 
 usage="Usage: ${0##*/} XXX"
 quiet="no"
+die() {
+  echo -e "$*"
+  exit 1
+}
+
+qecho() {
+  [ "$quiet" = "yes" ] || echo -e "$*"
+}
 
 show_help () {
   cat << eof
@@ -48,15 +56,9 @@ while [ "${1#-}" != "$1" ]; do
     echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
     exit 0;;
   *)
-   echo Unknown option \'$1\' 
-   exit 1;;
+   die "Unknown option '$1'";;
  esac
 done
 
-if [ -z "$1" ]; then
-  echo No YYY given ! >&2
-  echo $usage >&2
-  echo Help with -h >&2
-  exit 1 >&2
-fi
+[ -z "$1" ] && die "No YYY given !\n$usage\nHelp with -h"
 
