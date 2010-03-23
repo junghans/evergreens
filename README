@@ -21,7 +21,8 @@ sendto     - a small script around mail to send many files
 tkdiff     - a diff using tk with hg support
 execpart   - run a part of a script
 rtop       - remote top
-loggrep    - warapper to grep words from a log
+loggrep    - wrapper to grep words from a log
+hgrep      - wrapper to grep words from a shell history
 hgrdiff    - wrapper to compare two hg repos 
 todo       - a simple todo list manager
 vimless    - a better less, from vim
@@ -32,6 +33,7 @@ gitdiff
 todo
 hgrdiff
 loggrep
+hgrep
 rtop
 execpart
 cpuinfo
