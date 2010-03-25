@@ -1,4 +1,4 @@
-#! /bin/bash -il
+#! /bin/bash -i
 
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
    cat <<EOF
