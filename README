@@ -26,6 +26,7 @@ hgrep      - wrapper to grep words from a shell history
 hgrdiff    - wrapper to compare two hg repos 
 todo       - a simple todo list manager
 vimless    - a better less, from vim
+vimmanless - a better less for man, from vim
 sshalias   - creates ssh alias
 
 FILES_TO_INSTALL
