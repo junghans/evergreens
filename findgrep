@@ -1,3 +1,15 @@
-#! /bin/bash -x
+#! /bin/bash
+
+die() {
+  echo "$*" >&2
+  exit 1
+}
+
+if [ "$1" = "-v" ]; then
+  shift
+  [ -z "$2" ] && die "Missing argument"
+  echo "find . -name '$1' -exec grep --color=auto -nHE -e '$2' {} \;"
+fi
+[ -z "$2" ] && die "Missing argument"
 
 find . -name "$1" -exec grep --color=auto -nHE -e "$2" {} \;
