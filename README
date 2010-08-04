@@ -28,6 +28,7 @@ todo       - a simple todo list manager
 vimless    - a better less, from vim
 vimmanless - a better less for man, from vim
 sshalias   - creates ssh alias
+cwdiff     - colorized wdiff
 
 FILES_TO_INSTALL
 gitdiff
@@ -52,4 +53,6 @@ sendto
 sshalias
 tkdiff
 vimless
+vimmanless
+cwdiff
 END_FILES_TO_INSTALL
