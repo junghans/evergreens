@@ -1,0 +1,41 @@
+#! /bin/bash
+
+NL="
+"
+
+die (){
+  echo -e "$*" >&2
+  exit 1
+}
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+   cat <<EOF
+Usage: ${0##*/} dir1 dir2
+
+Calls tkdiff of all files that differ in dir1 and dir2
+
+
+Examples: ${0##*/} dir1 dir2
+EOF
+   exit 0
+fi
+
+[ -z "$2" ] && die "Error ${0##*/} needs at least 2 arguments\nHelp with ${0##*/} -h"
+if [ -f "$1" ] && [ -f "$2" ]; then
+  tkdiff $1 $2
+  exit $?
+fi
+[ -d "$1" ] || die "$1 is not a dir"
+[ -d "$2" ] || die "$1 is not a dir"
+
+diff="$(diff --new-file --recursive --brief $1 $2)"
+[ $? -eq 2 ] && die "diff failed"
+[ -z "$diff" ] && echo "Nothing differs" && exit 1
+
+IFS="$NL"
+pic=""
+for i in $(echo "$diff" | sed 's/Files \(.*\) and \(.*\) differ/\1::::\2/'); do
+  tkdiff ${i%%::::*} ${i##*::::} &
+  pic="$pid $!"
+done
+wait $pid

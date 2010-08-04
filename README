@@ -19,6 +19,7 @@ qtar       - quick tar, make a tarball of dir with date
 README     - this readme
 sendto     - a small script around mail to send many files
 tkdiff     - a diff using tk with hg support
+tkdiff_dir - tkdiff of dirs
 execpart   - run a part of a script
 rtop       - remote top
 loggrep    - wrapper to grep words from a log
@@ -52,6 +53,7 @@ qtar
 sendto
 sshalias
 tkdiff
+tkdiff_dir
 vimless
 vimmanless
 cwdiff
