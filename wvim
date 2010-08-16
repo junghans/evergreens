@@ -1,0 +1,88 @@
+#! /bin/bash
+
+#(C) 2010 C. Junghans
+# junghans@mpip-mainz.mpg.de
+
+#version 0.1  16.08.10 -- initial version
+
+usage="Usage: ${0##*/} [OPTIONS] -- [VIM-OPTIONS] [FILES]"
+quiet="no"
+vim="vim"
+
+die() {
+  echo -e "$*"
+  exit 1
+}
+
+qecho() {
+  [ "$quiet" = "yes" ] || echo -e "$*"
+}
+
+show_help () {
+  cat << eof
+This wrapper for vim to add -o or -O option for multiple files or notthing for one file
+$usage
+OPTIONS:
+    --vim VIM       Change vim command
+                    Default: $vim
+-q, --quiet         Be a little bit quiet
+-h, --help          Show this help
+-v, --version       Show version
+    --hg            Show last log message for hg (or cvs)
+
+Examples:  ${0##*/} -q
+           ${0##*/}
+
+Send bugs and comment to junghans@mpip-mainz.mpg.de
+eof
+}
+
+while [ "${1#-}" != "$1" ]; do
+ if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
+    #short opt with arguments here: f
+    if [ "${1#-[f]}" != "${1}" ]; then
+       set -- "${1:0:2}" "${1:2}" "${@:2}"
+    else
+       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+    fi
+ fi
+ case $1 in 
+  --vim)
+    vim="$2"
+    shift 2;;
+   -q | --quiet)
+    quiet="yes"
+    shift ;;
+   -h | --help)
+    show_help
+    exit 0;;
+   --hg)
+    echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*$\)/\1/p' $0 | sed -n '$p')"
+    exit 0;;
+   -v | --version)
+    echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
+    exit 0;;
+  --)
+   shift;;
+  *)
+   die "Unknown option '$1'";;
+ esac
+done
+
+[ -z "$1" ] && die "No file given !\n$usage\nHelp with -h"
+if [ -z "$2" ]; then
+  $vim "$@"
+  exit $?
+else 
+  echo -n "vertical(v) or horizontal(h) splitting? (h/v) "
+  read
+  if [ "$REPLY" = "v" ]; then
+    vim -O "$@"
+    exit $?
+  elif [ "$REPLY" = "h" ]; then
+    vim -O "$@"
+    exit $?
+  else
+    die "Wrong input - try h or v"
+  fi
+fi

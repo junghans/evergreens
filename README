@@ -12,6 +12,7 @@ fview      - far view
 filecheck  - add hash stamp to a file and check it
 findgrep   - find + grep
 fvim       - far vim
+wvim       - window vim
 guard      - run a command, when file is changed
 in2m4      - convert in file to m4 syntax
 install.sh - install script
@@ -47,6 +48,7 @@ fview
 filecheck
 findgrep
 fvim
+wvim
 guard
 in2m4
 qtar
