@@ -81,7 +81,7 @@ else
     vim -O "$@"
     exit $?
   elif [ "$REPLY" = "h" ]; then
-    vim -O "$@"
+    vim -o "$@"
     exit $?
   else
     die "Wrong input - try h or v"
