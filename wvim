@@ -4,6 +4,7 @@
 # junghans@mpip-mainz.mpg.de
 
 #version 0.1  16.08.10 -- initial version
+#version 0.2  02.02.11 -- added none splitting option
 
 usage="Usage: ${0##*/} [OPTIONS] -- [VIM-OPTIONS] [FILES]"
 quiet="no"
@@ -75,13 +76,16 @@ if [ -z "$2" ]; then
   $vim "$@"
   exit $?
 else 
-  echo -n "vertical(v) or horizontal(h) splitting? (h/v) "
+  echo -n "vertical(v) or horizontal(h) or no(n) splitting? (h/v/n) "
   read
   if [ "$REPLY" = "v" ]; then
     vim -O "$@"
     exit $?
   elif [ "$REPLY" = "h" ]; then
     vim -o "$@"
+    exit $?
+  elif [ "$REPLY" = "n" ]; then
+    vim "$@"
     exit $?
   else
     die "Wrong input - try h or v"
