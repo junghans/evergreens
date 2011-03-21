@@ -1,5 +1,5 @@
 #!/bin/sh
-sed -e 's/\x1B\[[[:digit:]]\+m//g' | col -b | \
+sed -e 's/\x1B\[[[:digit:]]\+m//g' $1 | col -b | \
 		vim \
 			-c 'let no_plugin_maps = 1' \
 			-c 'set nolist nomod ft=man' \
