@@ -17,6 +17,7 @@
 #
 #version 0.1.0,  28.09.11 -- initial version 
 #version 0.1.1,  05.10.11 -- fixed cwd problem in povray rule
+#version 0.1.2,  22.03.12 -- added gp slide rule
 
 # A Makefile using this include file usually look like this:
 #
@@ -79,7 +80,8 @@ root_quick:
   	   `sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\)\)".*$$/\1/p' $*.fdb_latexmk`
 
 %.eps: %.gp $(ROOTDIR)/Makefile.incl $(GP2EPS)
-	echo $(GNUPLOT_PICS_DOUBLE) | grep -q $@ && opts="--multi 2,1.7"; \
+	echo $(GNUPLOT_PICS_DOUBLE) | grep -q $@ && opts="--multi 2,1"; \
+	echo $(GNUPLOT_PICS_SLIDE) | grep -q $@ && opts="--multi 1,0.75"; \
 	$(GP2EPS) $(GPOPTS) $$opts $<
 
 %.eps: %.tex
@@ -106,7 +108,7 @@ root_quick:
 %.eps: %.fig
 	fig2dev -L eps $< $@
 
-GP_FILES=$(patsubst %.eps,%.gp,$(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE))
+GP_FILES=$(patsubst %.eps,%.gp,$(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) $(GNUPLOT_PICS_SLIDE))
 #if we have gp pics here
 ifneq "$(strip $(GP_FILES))" ""
 all: Makefile.plotdeps
@@ -154,7 +156,7 @@ subdirclean:
 clean: subdirclean localclean
 	rm -f *~ *.bak *.aux $(CLEANFILES) $(OTHER_PICS)
 	rm -f $(FIG_PICS) Makefile.figdeps
-	rm -f $(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) Makefile.plotdeps
+	rm -f $(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) $(GNUPLOT_PICS_SLIDE) Makefile.plotdeps
 
 #just an empty target to allow to be overwritten
 localclean:
