@@ -18,6 +18,8 @@
 #version 0.1.0,  28.09.11 -- initial version 
 #version 0.1.1,  05.10.11 -- fixed cwd problem in povray rule
 #version 0.1.2,  22.03.12 -- added gp slide rule
+#version 0.1.3,  22.03.12 -- make pov transparent to save space
+#version 0.1.4,  10.04.12 -- remove most of gp2eps hacks
 
 # A Makefile using this include file usually look like this:
 #
@@ -30,8 +32,8 @@
 #	./clean.sh
 #
 
-#SUBDIRS GNUPLOT_PICS GNUPLOT_PICS_DOUBLE and FIG_PICS should be set BEFORE include ./Makefile.incl
-all:$(SUBDIRS) $(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) $(FIG_PICS) $(OTHER_PICS)
+#SUBDIRS GNUPLOT_PICS and FIG_PICS should be set BEFORE include ./Makefile.incl
+all:$(SUBDIRS) $(GNUPLOT_PICS) $(FIG_PICS) $(OTHER_PICS)
 
 SHELL=/bin/bash
 #in case of svn hardcode the path!
@@ -45,7 +47,7 @@ BBOX_ADD=$(SCRIPTDIR)/bbox_add.pl
 
 #can be overwritten from outside - make GNUPLOT=gnuplot48
 GNUPLOT=gnuplot
-GPOPTS=--gnuplot $(GNUPLOT) -s 0.5 -p 11 --ratioscale 1 --textwidth 10.79846 --margins ,0.9,0.5, --termopts "font 'phv,,' color" --force
+GPOPTS=--gnuplot $(GNUPLOT) -s 0.5 -p 10 --ratioscale 1 --textwidth 17.9219 --margins ,0.9,0.5, --force
 #'--halt-on-error' to avoid interactive prompting
 LATEXMKOPTS=-e '$$latex=q/latex --halt-on-error %O %S/'
 
@@ -80,9 +82,7 @@ root_quick:
   	   `sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\)\)".*$$/\1/p' $*.fdb_latexmk`
 
 %.eps: %.gp $(ROOTDIR)/Makefile.incl $(GP2EPS)
-	echo $(GNUPLOT_PICS_DOUBLE) | grep -q $@ && opts="--multi 2,1"; \
-	echo $(GNUPLOT_PICS_SLIDE) | grep -q $@ && opts="--multi 1,0.75"; \
-	$(GP2EPS) $(GPOPTS) $$opts $<
+	$(GP2EPS) $(GPOPTS) $<
 
 %.eps: %.tex
 	@[ ! -f $*.gp ] || ( echo "$*.gp was found, but the '.tex to .eps' rule was called! That means, you have to remove $*.gp or $*.tex first!"; exit 1; )
@@ -95,12 +95,13 @@ root_quick:
 	@#povray can only write to cwd
 	cd $(<D); \
 	povray -D +A -W800 -H800 $(<F)
+	convert $@ -transparent white $@
 
 %.eps: %.jpg
 	convert $< $@
 
 %.eps: %.png
-	convert $< $@
+	convert $< -transparent white -trim $@
 
 %.eps: %.gif
 	convert $< $@
@@ -108,7 +109,7 @@ root_quick:
 %.eps: %.fig
 	fig2dev -L eps $< $@
 
-GP_FILES=$(patsubst %.eps,%.gp,$(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) $(GNUPLOT_PICS_SLIDE))
+GP_FILES=$(patsubst %.eps,%.gp,$(GNUPLOT_PICS))
 #if we have gp pics here
 ifneq "$(strip $(GP_FILES))" ""
 all: Makefile.plotdeps
@@ -138,7 +139,7 @@ Makefile.figdeps: $(FIG_FILES)
 	rm -f $@
 	@for i in $(FIG_FILES); do\
 	  echo Scanning $$i for deps; \
-	  sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\)$$/ \1.\2/p' $$i | \
+	  sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $$i | \
 	  tr -d '\n' | sed -e "s/^/$$i:/" -e 's/fig/eps/' >> $@; \
 	  echo >> $@;\
 	done
@@ -156,7 +157,7 @@ subdirclean:
 clean: subdirclean localclean
 	rm -f *~ *.bak *.aux $(CLEANFILES) $(OTHER_PICS)
 	rm -f $(FIG_PICS) Makefile.figdeps
-	rm -f $(GNUPLOT_PICS) $(GNUPLOT_PICS_DOUBLE) $(GNUPLOT_PICS_SLIDE) Makefile.plotdeps
+	rm -f $(GNUPLOT_PICS) Makefile.plotdeps
 
 #just an empty target to allow to be overwritten
 localclean:
