@@ -29,20 +29,22 @@ OPTIONS:
 Examples:  ${0##*/} -q
            ${0##*/}
 
-Send bugs and comment to junghans@mpip-mainz.mpg.de
+Send bugs and comment to junghans@votca.org
 eof
 }
 
-while [ "${1#-}" != "$1" ]; do
- if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
-    #short opt with arguments here: fc
-    if [ "${1#-[fc]}" != "${1}" ]; then
-       set -- "${1:0:2}" "${1:2}" "${@:2}"
-    else
-       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+shopt -s extglob
+while [[ ${1} = -?* ]]; do
+  if [[ ${1} = --??*=* ]]; then # case --xx=yy
+    set -- "${1%%=*}" "${1#*=}" "${@:2}" # --xx=yy to --xx yy
+  elif [[ ${1} = -[^-]?* ]]; then # case -xy split
+    if [[ ${1} = -[o]* ]]; then #short opts with arguments
+       set -- "${1:0:2}" "${1:2}" "${@:2}" # -xy to -x y
+    else #short opts without arguments
+       set -- "${1:0:2}" "-${1:2}" "${@:2}" # -xy to -x -y
     fi
- fi
- case $1 in 
+  fi
+  case $1 in
    -q | --quiet)
     quiet="yes"
     shift ;;
@@ -55,10 +57,10 @@ while [ "${1#-}" != "$1" ]; do
    -v | --version)
     echo "${0##*/}, $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans"
     exit 0;;
-  *)
-   die "Unknown option '$1'";;
- esac
+   *)
+    die "Unknown option '$1'";;
+  esac
 done
 
-[ -z "$1" ] && die "No YYY given !\n$usage\nHelp with -h"
+[[ -z $1 ]] && die "No YYY given !\n$usage\nHelp with -h"
 
