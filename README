@@ -4,59 +4,32 @@ This repository contain my evergreen scripts, scripts you need everywhere ;-)
 
 Content:
 
-cpuinfo    - show info on installed cpu
-cvc        - Christoph's Version Control
-fcat       - far cat
-fless      - far less
-fview      - far view
-filecheck  - add hash stamp to a file and check it
-findgrep   - find + grep
-fvim       - far vim
-wvim       - window vim
-guard      - run a command, when file is changed
-in2m4      - convert in file to m4 syntax
-install.sh - install script
-qtar       - quick tar, make a tarball of dir with date
-README     - this readme
-sendto     - a small script around mail to send many files
-tkdiff     - a diff using tk with hg support
-tkdiff_dir - tkdiff of dirs
-execpart   - run a part of a script
-rtop       - remote top
-loggrep    - wrapper to grep words from a log
-hgrep      - wrapper to grep words from a shell history
-hgrdiff    - wrapper to compare two hg repos 
-todo       - a simple todo list manager
-vimless    - a better less, from vim
-vimmanless - a better less for man, from vim
-sshalias   - creates ssh alias
-cwdiff     - colorized wdiff
-
-FILES_TO_INSTALL
-gitdiff
-todo
-hgrdiff
-loggrep
-hgrep
-rtop
-execpart
-cpuinfo
-cvc
-fcat
-fless
-fview
-filecheck
-findgrep
-fvim
-wvim
-guard
-in2m4
-qtar
-sendto
-sshalias
-tkdiff
-tkdiff_dir
-vimless
-vimmanless
-cwdiff
-END_FILES_TO_INSTALL
+README        - this readme
+Makefile.incl - Makefile to incl. for LaTeX projects
+cpuinfo       - show info on installed cpu
+cvc           - Christoph's Version Control
+cwdiff        - colorized wdiff
+execpart      - run a part of a script
+fcat          - far cat
+filecheck     - add hash stamp to a file and check it
+findgrep      - find + grep
+fless         - far less
+fview         - far view
+fvim          - far vim
+guard         - run a command, when file is changed
+hgrdiff       - wrapper to compare two hg repos
+hgrep         - wrapper to grep words from a shell history
+in2m4         - convert in file to m4 syntax
+loggrep       - wrapper to grep words from a log
+qtar          - quick tar, make a tarball of dir with date
+rtop          - remote top
+sendto        - a small script around mail to send many files
+skeleton.bash - a skeleton for scripts in bash
+skeleton.perl - a skeleton for scripts in perl
+sshalias      - creates ssh alias
+tkdiff        - a diff using tk with hg support
+tkdiff_dir    - tkdiff of dirs
+todo          - a simple todo list manager
+vimless       - a better less, from vim
+vimmanless    - a better less for man, from vim
+wvim          - window vim

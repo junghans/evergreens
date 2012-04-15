@@ -42,7 +42,7 @@ wm withdraw .
 
 # set a couple o' globals that we might need sooner than later
 set g(name) "TkDiff"
-set g(version) "4.1.4"
+set g(version) "4.2"
 set g(started) 0
 
 # FIXME - move to preferences
@@ -72,8 +72,8 @@ if {[catch {tk windowingsystem} g(windowingSystem)]} {
 # time you run
 switch -- $::tcl_platform(platform) {
 windows {
-        if {[info exists env(TEMP)]} {
-            set opts(tmpdir) [file nativename $env(TEMP)]
+        if {[info exists ::env(TEMP)]} {
+            set opts(tmpdir) [file nativename $::env(TEMP)]
         } else {
             set opts(tmpdir) C:/temp
         }
@@ -83,8 +83,10 @@ windows {
         set opts(relief) flat
     }
 default {
-        if {[info exists env(TMPDIR)]} {
-            set opts(tmpdir) $env(TMPDIR)
+        if {[info exists ::env(TMPDIR)] && $g(windowingSystem) != "aqua"} {
+            # MacOS X sets TMPDIR to something like /var/folders/uC/uCFr1z6qESSEYkTuOsevX++++yw/-Tmp-/
+            # don't let it do that
+            set opts(tmpdir) $::env(TMPDIR)
         } else {
             set opts(tmpdir) /tmp
         }
@@ -97,15 +99,22 @@ default {
 
 # compute preferences file location. Note that TKDIFFRC can hold either
 # a directory or a file, though we document it as being a file name
-if {[info exists env(TKDIFFRC)]} {
-    set rcfile $env(TKDIFFRC)
+if {[info exists ::env(TKDIFFRC)]} {
+    set rcfile $::env(TKDIFFRC)
     if {[file isdirectory $rcfile]} {
         set rcfile [file join $rcfile $basercfile]
     }
-} elseif {[info exists env(HOME)]} {
-    set rcfile [file join $env(HOME) $basercfile]
+} elseif {[info exists ::env(HOME)]} {
+    set rcfile [file join $::env(HOME) $basercfile]
 } else {
     set rcfile [file join "/" $basercfile]
+}
+
+# Where should we start?  MacOSX apps want to start in / which is obnoxious
+if {[pwd] == "/"} {
+    if {[info exists ::env(HOME)]} {
+       catch {cd $::env(HOME)}
+    }
 }
 
 # Try to find a pleasing native look for each platform.
@@ -121,6 +130,8 @@ destroy .native
 
 # Find out what the tk default is
 label .testlbl -text "LABEL"
+set w(background) [lindex [.testlbl cget -background] 0]
+set w(foreground) [lindex [.testlbl cget -foreground] 0]
 set labelfont [lindex [.testlbl configure -font] 3]
 destroy .testlbl
 
@@ -132,9 +143,6 @@ entry .testent
 set w(selcolor) [lindex [.testent configure -selectbackground] 4]
 set entryfont [lindex [.testent configure -font] 3]
 destroy .testent
-# the above results in a nearly undistinguishable darker gray for the
-# selected color (rh8 with tk 8.3.3-74) "#c3c3c3"
-set w(selcolor) "#b03060"
 
 #debug-info "menufont $menufont"
 #debug-info "labelfont $labelfont"
@@ -147,7 +155,7 @@ if {$fs == ""} {
   # You get {TkDefaultFont} instead of {fixed 12} or whatever
   # Then when you add "bold" to it you have a bad spec
   set fa [font actual $textfont]
-  puts " actual font: $fa"
+  #puts " actual font: $fa"
   set fm [lindex $fa 1]
   set fs [lindex $fa 3]
   set textfont [list $fm $fs]
@@ -217,6 +225,7 @@ array set opts {
     ignoreblanksopt   "-b"
     ignoreblanks      0
     editor            ""
+    filetypes         {{{All Files} *} {{Text Files} .txt} {{TclFiles} .tcl}}
     geometry          "80x30"
     showcbs           1
     showln            1
@@ -356,9 +365,9 @@ proc do-exit {{returncode {}}} {
 # Modal error dialog.
 ###############################################################################
 proc do-error {msg} {
+    debug-info "do-error ($msg)"
     global g
 
-    debug-info "do-error ($msg)"
     tk_messageBox -message "$msg" -title "$g(name): Error" -icon error -type ok
 }
 
@@ -385,7 +394,7 @@ proc fatal-error {msg} {
 # Return the name of a temporary file
 ###############################################################################
 proc tmpfile {n} {
-    debug-info "tmpfile ($n)"
+    #debug-info "tmpfile ($n)"
     global g opts
     global uniq
     set uniq [expr ($uniq + 1) ]
@@ -399,6 +408,7 @@ proc tmpfile {n} {
     }
     close $fid
     lappend g(tempfiles) $tmpfile
+    debug-info "temp file $tmpfile"
     return $tmpfile
 }
 
@@ -407,13 +417,13 @@ proc tmpfile {n} {
 # Returns "$stdout $stderr $exitcode" if exit code != 0
 ###############################################################################
 proc run-command {cmd} {
-    debug-info "run-command ($cmd)"
+    #debug-info "run-command ($cmd)"
     global opts errorCode
 
     set stderr ""
     set exitcode 0
     set errfile [tmpfile "r"]
-
+    debug-info "$cmd"
     set failed [catch "$cmd \"2>$errfile\"" stdout]
     # Read stderr output
     catch {
@@ -501,7 +511,6 @@ proc max {a b} {
 # Toggle change bars
 ###############################################################################
 proc do-show-changebars {{show {}}} {
-    debug-info "do-show-changebars ($show)"
     global opts
     global w
 
@@ -557,6 +566,7 @@ proc do-show-linenumbers {{showLn {}}} {
 # Show line numbers in info windows
 ###############################################################################
 proc draw-line-numbers {} {
+    debug-info "draw-line-numbers ()"
     global g
     global w
 
@@ -615,18 +625,15 @@ proc popup-merge {{writeproc merge-write-file}} {
     debug-info "popup-merge ($writeproc)"
     global g
     global w
+    global opts
 
     if {$g(mergefileset)} {
         $writeproc
         return
     }
 
-    set types {
-        {{Text Files}         {.txt}}
-        {{All Files}         {*}}
-    }
-
-    set path [tk_getSaveFile -defaultextension "" -filetypes $types \
+    set path [tk_getSaveFile -defaultextension "" \
+      -filetypes $opts(filetypes) \
       -initialfile [file nativename $g(mergefile)]]
 
     if {[string length $path] > 0} {
@@ -738,6 +745,7 @@ proc get-file-rev {f index {r ""}} {
         set acopt ""
         set cvsopt ""
         set svnopt ""
+        set gitopt ""
         set rcsopt ""
         set sccsopt ""
         set bkopt ""
@@ -750,6 +758,7 @@ proc get-file-rev {f index {r ""}} {
         set acopt "-v \"$r\""
         set cvsopt "-r $r"
         set svnopt "-r $r"
+        set gitopt "$r:"
         set rcsopt "$r"
         set sccsopt "-r$r"
         set bkopt "-r$r"
@@ -780,22 +789,38 @@ proc get-file-rev {f index {r ""}} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f (CVS $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd update -p $cvsopt \"$f\"" "\"$finfo(pth,$index)\""
-    } elseif {[file isdirectory [file join $dirname .svn]]} {
+    } elseif {! [catch {eval "exec svn info"}]} {
         set cmd "svn"
         if {$::tcl_platform(platform) == "windows"} {
             append cmd ".exe"
         }
         if {"$r" == "" || "$rev" == "rBASE"} {
             set finfo(lbl,$index) "$f (SVN BASE)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
-            die-unless "exec cat \"$dirname/.svn/text-base/$tailname.svn-base\"" \
-              $finfo(pth,$index)
         } else {
             set finfo(lbl,$index) "$f (SVN $rev)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
-            die-unless "exec $cmd cat $svnopt \"$f\"" $finfo(pth,$index)
+        }
+        die-unless "exec $cmd cat $svnopt \"$f\"" $finfo(pth,$index)
+    } elseif {[file isdirectory [file join $dirname .git]]} {
+        set cmd "git"
+        if {$::tcl_platform(platform) == "windows"} {
+            append cmd ".exe"
+        }
+        # Won't work if you aren't actually in the work tree
+        debug-info "exec $cmd rev-parse --is-inside-work-tree"
+        if {[catch {eval "exec $cmd rev-parse --is-inside-work-tree"} err] } {
+           puts stderr "$err"
+           puts stderr "Please start in a git work tree."
+           exit 1
+        }
+        debug-info "exec $cmd rev-parse --show-prefix"
+        set prefix [exec $cmd rev-parse --show-prefix]
+        if {"$r" == "" || "$rev" == "rBASE"} {
+            set finfo(lbl,$index) "$f (GIT BASE)"
+            die-unless "exec $cmd show \":$prefix$f\"" $finfo(pth,$index)
+        } else {
+            set finfo(lbl,$index) "$f (GIT $rev)"
+            die-unless "exec $cmd show \"$gitopt$prefix$f\"" $finfo(pth,$index)
         }
     } elseif {[regexp {://} $f]} {
         # Subversion command can have the form
@@ -815,18 +840,18 @@ proc get-file-rev {f index {r ""}} {
             set command "$cmd cat -r$rev $path"
         }
         die-unless "exec $command" $finfo(pth,$index)
-    } elseif {[file isdirectory [file join $dirname SCCS]]} {
-        if {[sccs-is-bk]} {
-            set cmd "bk"
-            set opt $bkopt
-            set finfo(lbl,$index) "$f (bitkeeper $rev)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
-        } else {
-            set finfo(lbl,$index) "$f (SCCS $rev)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
-            set opt $sccsopt
-            set cmd "sccs"
+    } elseif {[sccs-is-bk]} {
+	set cmd "bk"
+	set opt $bkopt
+	set finfo(lbl,$index) "$f (bitkeeper $rev)"
+        if {$::tcl_platform(platform) == "windows"} {
+            append cmd ".exe"
         }
+        die-unless "exec $cmd get -p $opt \"$f\"" "\"$finfo(pth,$index)\""
+    } elseif {[file isdirectory [file join $dirname SCCS]]} {
+	set finfo(lbl,$index) "$f (SCCS $rev)"
+	set opt $sccsopt
+	set cmd "sccs"
         if {$::tcl_platform(platform) == "windows"} {
             append cmd ".exe"
         }
@@ -837,7 +862,6 @@ proc get-file-rev {f index {r ""}} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f (RCS $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd -p$rcsopt \"$f\"" "\"$finfo(pth,$index)\""
     } elseif {[file exists [file join $dirname $tailname,v]]} {
         set cmd "co"
@@ -845,15 +869,13 @@ proc get-file-rev {f index {r ""}} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f (RCS $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd -p$rcsopt \"$f\"" \""$finfo(pth,$index)\""
-    } elseif {[file exists [file join $dirname vcs.cfg]]} {
+    } elseif {[file exists [file join $dirname vcs.cfg]] || [info exists ::env(VCSCFG)]} {
         set cmd "get"
         if {$::tcl_platform(platform) == "windows"} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f (PVCS $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd -p $pvcsopt \"$f\"" "\"$finfo(pth,$index)\""
         filterCRCRLF $finfo(pth,$index)
     } elseif {[info exists ::env(P4CLIENT)] || [info exists ::env(P4CONFIG)]} {
@@ -862,7 +884,6 @@ proc get-file-rev {f index {r ""}} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f (Perforce $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd print -q \"$p4file\"" "\"$finfo(pth,$index)\""
     } elseif {[info exists ::env(ACCUREV_BIN)]} {
         set cmd "accurev"
@@ -870,12 +891,11 @@ proc get-file-rev {f index {r ""}} {
             append cmd ".exe"
         }
         set finfo(lbl,$index) "$f ($acrev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
         die-unless "exec $cmd cat $acopt \"$f\"" "\"$finfo(pth,$index)\""
     } elseif {[info exists ::env(CLEARCASE_ROOT)]} {
         set cmd "cleartool"
         set finfo(lbl,$index) "$f (ClearCase $rev)"
-        debug-info "  Setting lbl $finfo(lbl,$index)"
+        debug-info "exec $cmd ls -s $f"
         catch {exec $cmd ls -s $f} ctls
         # get the path name to file minus the revision info
         # (either CHECKEDOUT or a number)
@@ -883,6 +903,7 @@ proc get-file-rev {f index {r ""}} {
             puts "Couldn't parse ct ls output '$ctls'"
             exit
         }
+        debug-info "exec $cmd lshistory -last 50 $f"
         catch {exec $cmd lshistory -last 50 $f} ctlshistory
         set lines [split $ctlshistory "\n"]
         set predecessor ""
@@ -919,11 +940,9 @@ proc get-file-rev {f index {r ""}} {
             # in hg, the revision for cat defaults to the parent revision
             # of the working directory
             set finfo(lbl,$index) "$f (HG PARENT)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
             die-unless "exec $cmd cat $f" $finfo(pth,$index)
         } else {
             set finfo(lbl,$index) "$f (HG $rev)"
-            debug-info "  Setting lbl $finfo(lbl,$index)"
             die-unless "exec $cmd cat $hgopt $f" $finfo(pth,$index)
         }
     } else {
@@ -938,6 +957,7 @@ proc get-file-rev {f index {r ""}} {
 }
 
 proc is-mercurial-repository {dirname} {
+    debug-info "is-mercurial-repository ($dirname)"
     # check for a .hg directory in all parent directories
     set dirname [file normalize $dirname]
     set prevdir {}
@@ -951,9 +971,11 @@ proc is-mercurial-repository {dirname} {
 }
 
 proc sccs-is-bk {} {
+    debug-info "sccs-is-bk ()"
     set cmd [auto_execok "bk"]
     set result 0
     if {[string length $cmd] > 0} {
+        debug-info "exec bk root"
         if {![catch {exec bk root} error]} {
             set result 1
         }
@@ -983,7 +1005,6 @@ proc get-file {f index} {
     # Header above each file - use filename unless
     # user has specified one with -L
     set finfo(lbl,$index) "$f"
-    debug-info "  Setting lbl  $finfo(lbl,$index)"
     if {$finfo(userlbl,$index) != {}} {
         set finfo(lbl,$index) $finfo(userlbl,$index)
         debug-info "  User label: $finfo(lbl,$index)"
@@ -1061,6 +1082,9 @@ proc commandline {} {
         "^-u$"  {
                 # Ignore flag from "svn diff --diff-cmd=tkdiff"
             }
+        "^-d$"  {
+                set g(debug) t
+            }
         "^-psn" {
                 # Ignore the Carbon Process Serial Number
                 set argv [lreplace $argv $argindex $argindex]
@@ -1081,7 +1105,7 @@ proc commandline {} {
 
     # Add our counters to the global array
     # Now check how many revision and file args we have.
-    debug-info "  $pths files, $revs revisions"
+    #debug-info " $pths files, $revs revisions"
     # Maybe adjustment is needed
     if {$revs == 1 && $pths == 0} {
        # tkdiff -r FILE; same as tkdiff FILE
@@ -1099,7 +1123,7 @@ proc commandline {} {
        unset finfo(revs,2)
     }
     # What have we got now?
-    debug-info "  $pths files, $revs revisions"
+    debug-info " $pths files, $revs revisions"
     if {$revs == 0 && $pths == 0} {
         # Return "empty" flag, and we'll do a pop-up
         return 1
@@ -1119,7 +1143,7 @@ proc commandline {} {
 # Process the arguments, whether from the command line or from the dialog
 ###############################################################################
 proc assemble-args {} {
-    debug-info "assemble-args"
+    debug-info "assemble-args ()"
     global finfo
     global opts
     global g
@@ -1127,10 +1151,10 @@ proc assemble-args {} {
     if {$g(ancfile) != ""} {
         set g(ancfileset) 1
     }
-    debug-info " conflict: $g(conflictset)"
-    debug-info " ancestor: $g(ancfileset) $g(ancfile)"
-    debug-info " mergefile set: $g(mergefileset) $g(mergefile)"
-    debug-info " diff command: $opts(diffcmd) "
+    #debug-info " conflict: $g(conflictset)"
+    #debug-info " ancestor: $g(ancfileset) $g(ancfile)"
+    #debug-info " mergefile set: $g(mergefileset) $g(mergefile)"
+    #debug-info " diff command: $opts(diffcmd) "
 
     # Count up how many files and revs we got from the GUI or commandline
     set pths 0
@@ -1221,15 +1245,22 @@ proc assemble-args {} {
             if {[get-file "$f" 2]} {return}
 
         } else {
-            do-error "Error: you specified $pths file(s) and $revs revision(s)"
-            do-usage gui
-            tkwait window .usage
-            return 1
+            if {[winfo exists .toolbar]} {
+                do-error "Error: you specified $pths file(s) and $revs revision(s)"
+                do-usage gui
+                tkwait window .usage
+
+                return 1
+            } else {
+                puts stderr "Error: you specified $pths file(s) and $revs revision(s)"
+                do-usage cline
+                exit 1
+            }
         }
     }
 
     set finfo(title) "[file tail $finfo(lbl,1)] vs. [file tail $finfo(lbl,2)]"
-    debug-info "  Setting title $finfo(title)"
+    #debug-info " Setting title $finfo(title)"
     set rootname [file rootname $finfo(pth,1)]
     #    set path          [file dirname          $finfo(pth,1)]
     set path [pwd]
@@ -1238,10 +1269,7 @@ proc assemble-args {} {
         set g(mergefile) [file join $path "${rootname}-merge$suffix"]
     }
     set g(initOK) 1
-    foreach inf [lsort [array names finfo]] {
-        debug-info "    $inf: $finfo($inf)"
-    }
-    debug-info " $revs revs  $pths files"
+    #debug-info " $revs revs  $pths files"
 
     wm title . "$finfo(title) - $g(name) $g(version)"
     return 0
@@ -1251,7 +1279,7 @@ proc assemble-args {} {
 # Set up the display
 ###############################################################################
 proc create-display {} {
-    debug-info "create-display"
+    debug-info "create-display ()"
 
     global g opts bg tk_version
     global w
@@ -1391,7 +1419,7 @@ proc show-popupMenu {x y} {
 # build the right-click popup menu
 ###############################################################################
 proc build-popupMenu {} {
-    debug-info "build-popupMenu"
+    debug-info "build-popupMenu ()"
     global w g
 
     # this routine assumes the other windows already exist...
@@ -1492,7 +1520,7 @@ proc pane_drag {win x} {
 # sort of fluff)
 ###############################################################################
 proc build-client {} {
-    debug-info "build-client"
+    debug-info "build-client ()"
     global g
     global w
     global opts
@@ -1537,7 +1565,7 @@ proc build-client {} {
 
     # we'll create each widget twice; once for the left side
     # and once for the right.
-    debug-info "  Assigning labels to headers"
+    debug-info " Assigning labels to headers"
     scan $opts(geometry) "%dx%d" width height
     label $w(LeftLabel) -bd 1 -relief flat -textvariable finfo(lbl,1) -width $width
     label $w(RightLabel) -bd 1 -relief flat -textvariable finfo(lbl,2) -width $width
@@ -1962,7 +1990,7 @@ set text_widget_proc {
 # create (if necessary) and show the find dialog
 ###############################################################################
 proc show-find {} {
-    debug-info "show-find"
+    debug-info "show-find ()"
     global w g
     global tcl_platform
 
@@ -2095,6 +2123,7 @@ proc do-copy {} {
 # search for the text in the find dialog
 ###############################################################################
 proc do-find {} {
+    debug-info "do-find ()"
     global g
     global w
 
@@ -2152,7 +2181,7 @@ proc do-find {} {
 # Build the menu bar
 ###############################################################################
 proc build-menubar {} {
-    debug-info "build-menubar"
+    debug-info "build-menubar ()"
     global g
     global opts
     global w
@@ -2244,41 +2273,41 @@ proc build-menubar {} {
     # update the tooltips.
     menu $viewMenu
     $viewMenu add checkbutton -label "Ignore White Spaces" -underline 8 \
-      -selectcolor $w(selcolor) -variable opts(ignoreblanks) \
+      -variable opts(ignoreblanks) \
       -command do-show-ignoreblanks
 
     $viewMenu add checkbutton -label "Show Line Numbers" -underline 12 \
-      -selectcolor $w(selcolor) -variable opts(showln) \
+      -variable opts(showln) \
       -command do-show-linenumbers
 
     $viewMenu add checkbutton -label "Show Change Bars" -underline 12 \
-      -selectcolor $w(selcolor) -variable opts(showcbs) \
+      -variable opts(showcbs) \
       -command do-show-changebars
 
     $viewMenu add checkbutton -label "Show Diff Map" -underline 5 \
-      -selectcolor $w(selcolor) -variable opts(showmap) -command do-show-map
+      -variable opts(showmap) -command do-show-map
 
     $viewMenu add checkbutton -label "Show Line Comparison Window" \
-      -underline 11 -selectcolor $w(selcolor) -variable opts(showlineview) \
+      -underline 11 -variable opts(showlineview) \
       -command do-show-lineview
 
     $viewMenu add checkbutton -label "Show Inline Comparison (byte)" \
-      -selectcolor $w(selcolor) -variable opts(showinline1) \
+      -variable opts(showinline1) \
       -command do-show-inline1
 
     $viewMenu add checkbutton -label "Show Inline Comparison (recursive)" \
-      -selectcolor $w(selcolor) -variable opts(showinline2) \
+      -variable opts(showinline2) \
       -command do-show-inline2
 
     $viewMenu add separator
 
     $viewMenu add checkbutton -label "Synchronize Scrollbars" -underline 0 \
-      -selectcolor $w(selcolor) -variable opts(syncscroll)
+      -variable opts(syncscroll)
     $viewMenu add checkbutton -label "Auto Center" -underline 0 \
-      -selectcolor $w(selcolor) -variable opts(autocenter) -command {if \
+      -variable opts(autocenter) -command {if \
       {$opts(autocenter)} {center}}
     $viewMenu add checkbutton -label "Auto Select" -underline 1 \
-      -selectcolor $w(selcolor) -variable opts(autoselect)
+      -variable opts(autoselect)
 
     $viewMenu add separator
 
@@ -2326,7 +2355,7 @@ proc build-menubar {} {
     # update the tooltips.
     menu $mergeMenu
     $mergeMenu add checkbutton -label "Show Merge Window" -underline 9 \
-      -selectcolor $w(selcolor) -variable g(showmerge) -command "do-show-merge 1"
+      -variable g(showmerge) -command "do-show-merge 1"
     $mergeMenu add command -label "Write Merge File..." -underline 6 \
       -command popup-merge
     set "g(tooltip,Show Merge Window)" "Pops up a window showing the current \
@@ -2344,6 +2373,8 @@ proc build-menubar {} {
       -command do-help-preferences
     $helpMenu add separator
     $helpMenu add command -label "About $g(name)" -underline 0 -command do-about
+    $helpMenu add command -label "About Wish" -underline 0 -command about_wish
+    $helpMenu add command -label "About Diff" -underline 0 -command about_diff
 
     bind $fileMenu <<MenuSelect>> {showTooltip menu %W}
     bind $editMenu <<MenuSelect>> {showTooltip menu %W}
@@ -2357,6 +2388,8 @@ proc build-menubar {} {
       Interface"
     set "g(tooltip,On Command Line)" "Show help on the command line arguments"
     set "g(tooltip,About $g(name))" "Show information about this application"
+    set "g(tooltip,About Wish)" "Show information about Wish"
+    set "g(tooltip,About Diff)" "Show information about diff"
 }
 
 ###############################################################################
@@ -2393,7 +2426,7 @@ proc showTooltip {which w} {
 # Build the toolbar, in text or image mode
 ###############################################################################
 proc build-toolbar {} {
-    debug-info "build-toolbar"
+    debug-info "build-toolbar ()"
     global w g
     global opts
 
@@ -2485,6 +2518,7 @@ proc build-toolbar {} {
     label $toolbar.mergechoicelbl -text "Merge:" -pady 0 -bd 2 -relief groove
 
     radiobutton $toolbar.m2_im -borderwidth 1 -indicatoron false \
+      -selectcolor $w(selcolor) \
       -image mergeChoice2Image -value 2 -variable g(toggle) -command \
       [list do-merge-choice 2] -takefocus 0
     radiobutton $toolbar.m2_tx -borderwidth 1 -indicatoron true -text "R" \
@@ -2492,6 +2526,7 @@ proc build-toolbar {} {
       -takefocus 0
 
     radiobutton $toolbar.m1_im -borderwidth 1 -indicatoron false \
+      -selectcolor $w(selcolor) \
       -image mergeChoice1Image -value 1 -variable g(toggle) -command \
       [list do-merge-choice 1] -takefocus 0
     radiobutton $toolbar.m1_tx -borderwidth 1 -indicatoron true -text "L" \
@@ -2499,6 +2534,7 @@ proc build-toolbar {} {
       -takefocus 0
 
     radiobutton $toolbar.m12_im -borderwidth 1 -indicatoron false \
+      -selectcolor $w(selcolor) \
       -image mergeChoice12Image -value 12 -variable g(toggle) -command \
       [list do-merge-choice 12] -takefocus 0
     radiobutton $toolbar.m12_tx -borderwidth 1 -indicatoron true -text "LR" \
@@ -2506,6 +2542,7 @@ proc build-toolbar {} {
       -takefocus 0
 
     radiobutton $toolbar.m21_im -borderwidth 1 -indicatoron false \
+      -selectcolor $w(selcolor) \
       -image mergeChoice21Image -value 21 -variable g(toggle) -command \
       [list do-merge-choice 21] -takefocus 0
     radiobutton $toolbar.m21_tx -borderwidth 1 -indicatoron true -text "RL" \
@@ -2566,7 +2603,6 @@ proc build-toolbar {} {
 }
 
 proc pack-toolbuttons {toolbar} {
-    #debug-info "pack-toolbuttons ($toolbar)"
     global opts
 
     if {$opts(toolbarIcons)} {
@@ -2621,7 +2657,7 @@ proc pack-toolbuttons {toolbar} {
 }
 
 proc reconfigure-toolbar {} {
-    debug-info "reconfigure-toolbar"
+    debug-info "reconfigure-toolbar ()"
     global w
 
     foreach button [winfo children $w(toolbar)] {
@@ -2632,7 +2668,7 @@ proc reconfigure-toolbar {} {
 }
 
 proc build-status {} {
-    debug-info "build-status"
+    debug-info "build-status ()"
     global w
     global g
 
@@ -2989,7 +3025,7 @@ proc diffmark {option {diff -1}} {
 # Customize the display (among other things).
 ###############################################################################
 proc customize {} {
-    debug-info "customize"
+    debug-info "customize ()"
     global pref
     global g
     global w
@@ -3032,6 +3068,7 @@ proc customize {} {
     pack $w(preferences).notebook -side top -fill x -pady 4
     set pagelist {}
 
+    # The relief makes these work, so we don't need to use the selcolor
     # Radiobuttons without indicators look rather sucky on MacOSX, so
     # we'll tweak the style for that platform
     if {$::tcl_platform(os) == "Darwin"} {
@@ -3039,14 +3076,14 @@ proc customize {} {
     } else {
         set indicatoron false
     }
-
     foreach page [list General Display Appearance] {
         set frame $w(preferences).f$page
         lappend pagelist $frame
         set rb $w(preferences).notebook.f$page
         radiobutton $rb -command "customize-selectPage $frame" \
+          -selectcolor $w(background) \
           -variable g(prefPage) -value $frame -height 2 -text $page \
-          -indicatoron $indicatoron -width 10 -borderwidth 1
+          -indicatoron $indicatoron -borderwidth 1
 
         pack $rb -side left
 
@@ -3065,7 +3102,7 @@ proc customize {} {
     # General
     set count 0
     set frame $w(preferences).fGeneral
-    foreach key {diffcmd ignoreblanksopt tmpdir editor geometry} {
+    foreach key {diffcmd ignoreblanksopt tmpdir editor filetypes geometry } {
         label $frame.l$count -text "$pref($key): " -anchor w
         set tmpopts($key) $opts($key)
         entry $frame.e$count -textvariable tmpopts($key) -width 50 -bd 2 \
@@ -3310,6 +3347,7 @@ proc customize-initLabels {} {
     set pref(geometry) {Text window size}
     set pref(tmpdir) {Directory for scratch files}
     set pref(editor) {Program for editing files}
+    set pref(filetypes) {Choice of file suffixes for file dialogs}
 
     set pref(fancyButtons) {Windows-style toolbar buttons}
     set pref(showlineview) {Show current line comparison window}
@@ -3372,12 +3410,12 @@ proc apply {{remark 0}} {
     set gridsize [wm grid .]
     set gridx [lindex $gridsize 2]
     set gridy [lindex $gridsize 3]
-    debug-info " wm grid is $gridx x $gridy"
+    #debug-info " wm grid is $gridx x $gridy"
 
     set maxunitsx [expr {$screenWidth / $gridx}]
     set maxunitsy [expr {$screenHeight / $gridy}]
-    debug-info "   max X is $maxunitsx units"
-    debug-info "   max Y is $maxunitsy units"
+    #debug-info "   max X is $maxunitsx units"
+    #debug-info "   max Y is $maxunitsy units"
     set halfmax [expr {$maxunitsx / 2}]
 
     if {$tmpopts(geometry) == "" || [catch {scan $tmpopts(geometry) \
@@ -3385,9 +3423,9 @@ proc apply {{remark 0}} {
         do-error "invalid geometry setting: $tmpopts(geometry)"
         return
     }
-    debug-info " width $width  halfmax $halfmax"
+    #debug-info " width $width  halfmax $halfmax"
     set maxw [expr {$halfmax - 18}]
-    debug-info " maxw $maxw"
+    #debug-info " maxw $maxw"
     if {$width > $maxw} {
         set width $maxw
     }
@@ -3452,7 +3490,7 @@ proc apply {{remark 0}} {
 
     # set opts to the values from tmpopts
     foreach key {autocenter autoselect chgtag colorcbs currtag deltag diffcmd \
-      difftag inlinetag editor fancyButtons geometry ignoreblanks \
+      difftag inlinetag editor fancyButtons filetypes geometry ignoreblanks \
       ignoreblanksopt instag overlaptag showcbs showlineview showln showmap \
       syncscroll tabstops tagcbs tagln tagtext textopt tmpdir toolbarIcons} {
         set opts($key) $tmpopts($key)
@@ -3492,7 +3530,7 @@ proc apply {{remark 0}} {
 # Save customization changes.
 ###############################################################################
 proc save {} {
-    debug-info "save"
+    debug-info "save ()"
     global g
     global tmpopts rcfile tcl_platform
     global pref
@@ -3936,7 +3974,7 @@ proc diff-size {pos version {screen 0}} {
 # Toggle showing merge preview or not
 ###############################################################################
 proc do-show-merge {{showMerge ""}} {
-    debug-info "do-show-merge ($showMerge)"
+    #debug-info "do-show-merge ($showMerge)"
     global g
     global w
 
@@ -3957,7 +3995,7 @@ proc do-show-merge {{showMerge ""}} {
     } else {
         wm withdraw $w(merge)
     }
-    debug-info "  ...restore-cursor from do-show-merge"
+    #debug-info "  ...restore-cursor from do-show-merge"
     restore-cursor
 }
 
@@ -3965,7 +4003,7 @@ proc do-show-merge {{showMerge ""}} {
 # Create Merge preview window
 ###############################################################################
 proc merge-create-window {} {
-    debug-info "merge-create-window"
+    debug-info "merge-create-window ()"
     global opts
     global w
     global g
@@ -4079,7 +4117,7 @@ proc merge-create-window {} {
 # Not so good if it has changed.
 ###############################################################################
 proc merge-read-file {} {
-    debug-info "merge-read-file"
+    debug-info "merge-read-file ()"
     global finfo
     global w
 
@@ -4645,7 +4683,7 @@ proc map-seek {y} {
 # is 0).
 ###############################################################################
 proc move {value {relative 1} {setpos 1}} {
-    #debug-info "move $value $relative $setpos"
+    #debug-info "move ($value $relative $setpos)"
     global g
     global w
 
@@ -4682,7 +4720,7 @@ proc move {value {relative 1} {setpos 1}} {
 }
 
 proc update-display {} {
-    #debug-info "update-display"
+    debug-info "update-display ()"
     global g
     global w
 
@@ -4932,7 +4970,7 @@ proc buttons {{newstate "normal"}} {
 # Wipe the slate clean...
 ###############################################################################
 proc wipe {} {
-    debug-info "wipe"
+    debug-info "wipe ()"
     global g
 
     set g(pos) 0
@@ -4948,7 +4986,7 @@ proc wipe {} {
 # Wipe all data and all windows
 ###############################################################################
 proc wipe-window {} {
-    debug-info "wipe-window"
+    debug-info "wipe-window ()"
     global g
     global w
 
@@ -4989,7 +5027,7 @@ proc wipe-window {} {
 # Mark difference regions and build up the combobox
 ###############################################################################
 proc mark-diffs {} {
-    debug-info "mark-diffs"
+    debug-info "mark-diffs ()"
     global g
     global w
 
@@ -5001,7 +5039,7 @@ proc mark-diffs {} {
     # ain't this clever? We want to update the display as soon as
     # we've marked enough diffs to fill the display so the user will
     # have the impression we're fast. But, we don't want this
-    # want this code to slow us down too much, so we'll put the
+    # code to slow us down too much, so we'll put the
     # code in a variable and delete it when its no longer needed.
     set hack {
         # for now, just pick a number out of thin air. Ideally
@@ -5037,10 +5075,9 @@ proc mark-diffs {} {
 # start a new diff from the popup dialog
 ###############################################################################
 proc do-new-diff {} {
+    debug-info "do-new-diff ()"
     global g
     global finfo
-
-    debug-info "do-new-diff"
 
     set g(mergefileset) 0
     set g(mergefile) ""
@@ -5057,9 +5094,9 @@ proc do-new-diff {} {
     # Put them together into a command
     if {[assemble-args] != 0} return
 
-    foreach inf [lsort [array names finfo]] {
-        debug-info "    $inf: $finfo($inf)"
-    }
+    #foreach inf [lsort [array names finfo]] {
+        #debug-info "    $inf: $finfo($inf)"
+    #}
 
     set g(disableSyncing) 1 ;# turn off syncing until things settle down
 
@@ -5071,7 +5108,7 @@ proc do-new-diff {} {
     # do the diff
     do-diff
 
-    debug-info "   move first 1 1  from do-new-diff"
+    #debug-info "   move first 1 1  from do-new-diff"
     move first 1 1
 
     #debug-info "    ...restore-cursor from do-new-diff"
@@ -5086,7 +5123,7 @@ proc do-new-diff {} {
 # Remark difference regions...
 ###############################################################################
 proc remark-diffs {} {
-    debug-info "remark-diffs"
+    debug-info "remark-diffs ()"
     global g
     global w
     global opts
@@ -5156,7 +5193,6 @@ proc show-info {message} {
     global g
 
     set g(statusInfo) $message
-    debug-info "show-info: $message"
     update idletasks
 }
 
@@ -5176,7 +5212,7 @@ proc debug-info {message} {
 # Compute differences (start over, basically).
 ###############################################################################
 proc rediff {} {
-    debug-info "\nrediff"
+    debug-info "rediff ()"
     global g
     global opts
     global finfo
@@ -5339,7 +5375,7 @@ proc rediff {} {
 # Set the X cursor to "watch" for a window and all of its descendants.
 ###############################################################################
 proc watch-cursor {args} {
-    debug-info "-> watch-cursor ($args)"
+    #debug-info "watch-cursor ($args)"
     global current
     global w
 
@@ -5354,7 +5390,7 @@ proc watch-cursor {args} {
 # Restore the X cursor for a window and all of its descendants.
 ###############################################################################
 proc restore-cursor {args} {
-    debug-info "-> restore-cursor ($args)"
+    #debug-info "restore-cursor ($args)"
     global current
     global w
 
@@ -5383,9 +5419,9 @@ proc check-error {result output} {
 # numerically speaking.
 ###############################################################################
 proc recompute-diff {} {
-
-    debug-info "recompute-diff"
+    debug-info "recompute-diff ()"
     global g
+
     set current $g(pos)
     debug-info "current position $g(pos)"
 
@@ -5399,7 +5435,7 @@ proc recompute-diff {} {
 # Flash the "rediff" button and then kick off a rediff.
 ###############################################################################
 proc do-diff {} {
-    debug-info "do-diff"
+    debug-info "do-diff ()"
     global g finfo map errorInfo
     global opts
 
@@ -5411,7 +5447,6 @@ proc do-diff {} {
             catch {$map blank}
         }
 
-        #assemble-args
         rediff
         merge-read-file
         merge-add-marks
@@ -5442,23 +5477,7 @@ proc main {} {
     global startupError
     global opts
     global waitvar
-
-    set cmd_empty [commandline]
-    debug-info "  main: commandline returned $cmd_empty"
-    if {! $cmd_empty} {
-        assemble-args
-    } else {
-        newDiffDialog
-        # If they cancel the dialog before doing any diffs, exit
-        if {[assemble-args] != 0} {
-          if {! [winfo exists .client]} {
-             do-exit
-          }
-          # If the full UI is drawn, don't exit
-          return
-        }
-        set cmd_empty 0
-    }
+    global tk_version
 
     wm withdraw .
     wm protocol . WM_DELETE_WINDOW do-exit
@@ -5481,14 +5500,42 @@ proc main {} {
         }
     }
 
-    set g(started) 1
-    wipe
-
     if {$g(windowingSystem) == "x11"} {
-        get_cde_params
+        if {[get_gtk_params]} {
+           debug-info "gtk"
+        } elseif {[get_cde_params]} {
+           debug-info "cde"
+        } else {
+           debug-info "x11 fallback"
+           set hlbg "#4a6984"
+           set hlfg "#ffffff"
+           #set w(selcolor) $hlbg
+           if {$tk_version >= 8.5} {
+             option add *Menu.selectColor $w(foreground)
+             option add *Checkbutton.selectColor ""
+             option add *Radiobutton.selectColor ""
+           } else {
+             option add *selectColor $hlbg
+           }
+        }
     }
     if {$g(windowingSystem) == "aqua"} {
         get_aqua_params
+    }
+
+    set g(started) 1
+    wipe
+
+    set cmd_empty [commandline]
+    if {! $cmd_empty} {
+        assemble-args
+    } else {
+        newDiffDialog
+        # If they cancel the dialog before doing any diffs, exit
+        if {[assemble-args] != 0} {
+          return
+        }
+        set cmd_empty 0
     }
 
     create-display
@@ -5734,9 +5781,9 @@ proc newDiffDialog {} {
         }
         button $commands.cancel -text "Cancel" -width 5 -default normal \
           -command {
+            if {! [winfo exists .client]} {do-exit}
             wm withdraw $w(newDiffPopup); set waitvar 0
         }
-
         pack $commands.ok $commands.cancel -side left -fill none -expand y \
           -pady 4
 
@@ -5818,11 +5865,29 @@ proc close-more-options {} {
 ###############################################################################
 proc newDiffBrowse {title widget} {
     global w
+    global opts
 
-    set foo [$widget get]
-    set initialdir [file dirname $foo]
-    set initialfile [file tail $foo]
-    set filename [tk_getOpenFile -title $title -initialfile $initialfile \
+    debug-info "newDiffBrowse($title $widget)"
+    set n [string index $widget end]
+    set widgroot [string range $widget 0 end-1]
+    if {$n == 1} { set other 2 } elseif { $n == 2} { set other 1 }
+    set entrystuff [$widget get]
+    debug-info "$n: entrystuff $entrystuff"
+    if {$entrystuff != ""} {
+      set initialdir [file dirname $entrystuff]
+    } else {
+      set otherentrystuff [${widgroot}$other get]
+      if {$otherentrystuff != ""} {
+        set initialdir [file dirname $otherentrystuff]
+      } else {
+        set initialdir [pwd]
+      }
+    }
+    debug-info "initialdir $initialdir"
+    set initialfile [file tail $entrystuff]
+    set filename [tk_getOpenFile -title $title \
+      -filetypes $opts(filetypes) \
+      -initialfile $initialfile \
       -initialdir $initialdir]
     if {[string length $filename] > 0} {
         $widget delete 0 end
@@ -5976,11 +6041,7 @@ proc write-report {command args} {
             wm withdraw $w(reportPopup)
         }
     browse {
-            set types {
-                {{All Files}         {*}}
-            }
-
-            set path [tk_getSaveFile -defaultextension "" -filetypes $types \
+            set path [tk_getSaveFile \
               -initialfile $report(filename)]
 
             if {[string length $path] > 0} {
@@ -6079,6 +6140,45 @@ proc write-report {command args} {
 }
 
 ###############################################################################
+# Report the version of wish
+###############################################################################
+proc about_wish {} {
+  global tk_patchLevel
+
+  set version $tk_patchLevel
+  set whichwish [info nameofexecutable]
+
+  set about_string "$whichwish\n\n"
+  append about_string "Tk version  $version"
+
+  tk_messageBox -title "About Wish" \
+    -message $about_string \
+    -parent . \
+    -type ok
+}
+
+###############################################################################
+# Report the version of diff
+###############################################################################
+proc about_diff {} {
+
+  set whichdiff [auto_execok diff]
+  if {[llength $whichdiff]} {
+    set whichdiff [join $whichdiff]
+    set commandline "diff -v"
+    catch {eval "exec $commandline"} output
+    set message "$whichdiff\n$output"
+  } else {
+    set message "diff was not found in your path!"
+  }
+
+  tk_messageBox -title "About Diff" \
+    -message $message \
+    -parent . \
+    -type ok
+}
+
+###############################################################################
 # Throw up an "about" window.
 ###############################################################################
 proc do-about {} {
@@ -6122,9 +6222,9 @@ You should have received a copy of the GNU General Public License along with \
 # Throw up a "command line usage" window.
 ###############################################################################
 proc do-usage {mode} {
+    debug-info "do-usage ($mode)"
     global g
 
-    debug-info "do-usage ($mode)"
     set usage {
     $g(name) may be started in any of the following ways:
 
@@ -6137,8 +6237,8 @@ proc do-usage {mode} {
     Plain file with conflict markers:
      	tkdiff -conflict FILE
 
-    Source control (AccuRev, BitKeeper, ClearCase, CVS, Mercurial, Perforce, 
-      PVCS, RCS, SCCS, and Subversion)
+    Source control (AccuRev, BitKeeper, ClearCase, CVS, Git, Mercurial, \
+      Perforce, PVCS, RCS, SCCS, Subversion)
      	tkdiff FILE
 	tkdiff -rREV FILE
 	tkdiff -rREV1 -rREV2 FILE
@@ -6148,6 +6248,7 @@ proc do-usage {mode} {
 	-a ANCESTORFILE 
 	-o MERGEOUTPUTFILE 
 	-L LEFT_FILE_LABEL [-L RIGHT_FILE_LABEL]
+        -d debug
     }
 
     set usage [subst -nobackslashes -nocommands $usage]
@@ -6157,8 +6258,9 @@ $g(name) detects and supports RCS, CVS, Subversion and SCCS by looking for a \
       directory with the same name. It detects and supports PVCS by looking \
       for a vcs.cfg file. It detects and supports AccuRev, Perforce and \
       ClearCase by looking for the environment variables named ACCUREV_BIN, \
-      P4CLIENT, and CLEARCASE_ROOT respectively.  It detects and supports \
-      Mercurial by looking for a directory named ".hg" in the current \
+      P4CLIENT, and CLEARCASE_ROOT respectively. It detects Git by looking \
+      for a .git directory, but will only work when started in Git work-tree. \
+      Mercurial is supported by looking for a directory named ".hg" in the current \
       directory or any of its ancestor directories.
 
 In the first form, tkdiff will present a dialog to allow you to choose the \
@@ -6177,16 +6279,19 @@ In the remaining forms, <cmp>REV</cmp> (or <cmp>REV1</cmp> and \
       but no revision number is specified, <cmp>FILE</cmp> is compared with \
       the revision most recently checked in.
 
+Git <cmp>REV</cmp> (see man git-rev-parse):
+  -r <cmp>FILE</cmp>                   [compare with <cmp>HEAD</cmp>]
+  -r <cmp>HEAD</cmp> <cmp>FILE</cmp>        [compare with <cmp>HEAD</cmp>]
+  -r <cmp>HEAD^</cmp> <cmp>FILE</cmp>      [compare with parent of <cmp>HEAD</cmp>]
+  -r <cmp>HEAD~5</cmp> <cmp>FILE</cmp>    [compare with 5th parent of <cmp>HEAD</cmp>]
+  -r <cmp>HEAD~20</cmp> -r <cmp>HEAD^</cmp> <cmp>FILE</cmp>   [compare 20th parent and parent of <cmp>HEAD</cmp>]
+  -r 29329e <cmp>FILE</cmp>    [compare with commit 29329e (full/partial SHA1)]
+  -r v1.2.3 <cmp>FILE</cmp>      [compare with tag (UNTESTED)]
+
 To merge a file with conflict markers generated by "<cmp>merge</cmp>", \
       "<cmp>cvs</cmp>", or "<cmp>vmrg</cmp>", use \
       "<cmp>tkdiff -conflict FILE</cmp>". The file is split into two temporary \
       files which you can merge as usual (see below).
-
-For "<cmp>tkdiff FILE</cmp>" The CVS version has priority, followed by the \
-      Subversion version, followed by the SCCS version, followed by RCS, \
-      PVCS, Perforce, AccuRev, ClearCase, and Mercurial -- i.e. if a CVS \
-      directory is present, CVS; if not and a Subversion directory is \
-      present, Subversion; etc.
 
 If the merge output filename is not specified, tkdiff will present a dialog \
       to allow you to choose the name of the merge output file.
@@ -6472,6 +6577,12 @@ If the supplied string contains the string "\$file", it\'s treated as a whole \
 For example, in the case of NEdit or Emacs you can use "nc -line \$line \
      \$file" and "emacs +\$line \$file" respectively.
 
+<bld>$pref(filetypes)</bld>
+
+The choice of file suffixes you want to see in the file open and save dialogs \
+       A list of the form { {{All Files} *} {{Text Files} .txt} } and so on.
+
+
 <bld>$pref(geometry)</bld>
 
 This defines the default size, in characters of the two text windows. The \
@@ -6518,7 +6629,7 @@ If not set, no line numbers will appear.
 <bld>$pref(tagln)</bld>
 
 If set, line numbers are highlighted with the options defined in the \
-      Appearance section of the preferences.
+       Appearance section of the preferences.
 If not set, line numbers won\'t be highlighted.
 
 <bld>$pref(showcbs)</bld>
@@ -6572,7 +6683,7 @@ finds the largest common substring, and recursively repeats on the left and \
 <bld>$pref(tagtext)</bld>
 
 If set, the file contents will be highlighted with the options defined in the \
-      Appearance section of the preferences.
+       Appearance section of the preferences.
 If not set, the file contents won\'t be highlighted.
 
 <bld>$pref(colorcbs)</bld>
@@ -6747,6 +6858,7 @@ proc purge-all-tags {w start end} {
 
 # Open one of the diffed files in an editor if possible
 proc do-edit {} {
+    debug-info "do-edit ()"
     global g
     global opts
     global finfo
@@ -6769,8 +6881,10 @@ proc do-edit {} {
             set line [lindex [extract $g(currdiff)] [expr {($fileno-1) *2+1}]]
             set file $finfo(pth,$fileno)
             eval set commandline \"$opts(editor) &\"
+            debug-info "exec $commandline"
             eval exec $commandline
         } else {
+            debug-info "exec $opts(editor) \"{$finfo(pth,$fileno)}\" &"
             eval exec $opts(editor) "{$finfo(pth,$fileno)}" &
         }
     }
@@ -6780,13 +6894,16 @@ proc do-edit {} {
 # platform-specific stuff
 ##########################################################################
 proc setAquaDialogStyle {toplevel} {
-    tk::unsupported::MacWindowStyle style $toplevel movableDBoxProc
+    if {[catch {tk::unsupported::MacWindowStyle style $toplevel moveableModal}] } {
+        tk::unsupported::MacWindowStyle style $toplevel movableDBoxProc
+    }
 }
 
 ##########################################################################
 # A simple editor, from Bryan Oakley.
 ##########################################################################
 proc simpleEd {command args} {
+    debug-info "simpleEd ($command $args)"
     global textfont
 
     switch -- $command {
@@ -6806,7 +6923,6 @@ proc simpleEd {command args} {
 
             menu $w.menubar
             $w configure -menu $w.menubar
-
             $w.menubar add cascade -label "File" -menu $w.menubar.fileMenu
             $w.menubar add cascade -label "Edit" -menu $w.menubar.editMenu
 
@@ -9368,9 +9484,74 @@ proc internal_tooltips_PopDown {} {
     catch {destroy .tooltips_wind}
 }
 
-# Most of this was stolen from the "CDE" package by D. J. Hagberg.
-# I dig a couple more things out of the palette. -dar
+proc get_gtk_params { } {
+    global w
+    global tk_version
+  
+    if {! [llength [auto_execok xrdb]]} {
+      return 0
+    }
+    set pipe [open "|xrdb -q" r]
+    while {[gets $pipe ln] > -1} {
+      switch -glob -- $ln {
+        {\*Toplevel.background:*} {
+          #puts $ln
+          set bg [lindex $ln 1]
+        }
+        {\*Toplevel.foreground:*} {
+          #puts $ln
+          set fg [lindex $ln 1]
+        }
+        {\*Text.background:*} {
+          #puts $ln
+          set textbg [lindex $ln 1]
+        }
+        {\*Text.foreground:*} {
+          #puts $ln
+          set textfg [lindex $ln 1]
+        }
+        {\*Text.selectBackground:*} {
+          #puts $ln
+          set hlbg [lindex $ln 1]
+        }
+        {\*Text.selectForeground:*} {
+          #puts $ln
+        set hlfg [lindex $ln 1]
+        }
+      }
+    }
+    close $pipe
+  
+    if {! [info exists bg] || ! [info exists fg]} {
+        return 0
+    }
+    set w(selcolor) $hlbg
+    option add *Entry.Background $textbg
+    option add *Entry.Foreground $textfg
+    option add *Entry.selectBackground $hlbg
+    option add *Entry.selectForeground $hlfg
+    option add *Entry.readonlyBackground $bg
+    option add *Listbox.background $textbg
+    option add *Listbox.selectBackground $hlbg
+    option add *Listbox.selectForeground $hlfg
+    option add *Text.Background $textbg
+    option add *Text.Foreground $textfg
+    option add *Text.selectBackground $hlbg
+    option add *Text.selectForeground $hlfg
+    # Menu checkboxes
+    if {$tk_version >= 8.5} {
+       option add *Menu.selectColor $fg
+       option add *Checkbutton.selectColor ""
+       option add *Radiobutton.selectColor ""
+    } else {
+       option add *selectColor $w(selcolor)
+    }
+
+    return 1
+}
+
 proc get_cde_params {} {
+    global tk_version
     global w
 
     # Set defaults for all the necessary things
@@ -9379,22 +9560,19 @@ proc get_cde_params {} {
     set guifont [option get . buttonFontList buttonFontList]
     set txtfont [option get . FontSet FontSet]
     set listfont [option get . textFontList textFontList]
-    set textbg $bg
-    set textfg $fg
+
+    set textbg white
+    set textfg black
 
     # If any of these aren't set, I don't think we're in CDE after all
-    if {![string length $fg]} {
-        return 0
-    }
-    if {![string length $bg]} {
-        return 0
-    }
+    if {![string length $fg]} { return 0 }
+    if {![string length $bg]} { return 0 }
     if {![string length $guifont]} {
-        return 0
+      # For AIX
+      set guifont [option get . FontList FontList]
     }
-    if {![string length $txtfont]} {
-        return 0
-    }
+    if {![string length $guifont]} { return 0 }
+    if {![string length $txtfont]} { return 0 }
 
     set guifont [string trimright $guifont ":"]
     set txtfont [string trimright $txtfont ":"]
@@ -9416,6 +9594,7 @@ proc get_cde_params {} {
     set cur_rsrc ~/.dt/sessions/current/dt.resources
     set hom_rsrc ~/.dt/sessions/home/dt.resources
     if {[file readable $cur_rsrc] && [file readable $hom_rsrc]} {
+        # Both exist.  Use whichever is newer
         if {[file mtime $cur_rsrc] > [file mtime $hom_rsrc]} {
             if {[catch {open $cur_rsrc r} fh]} {
                 set fh ""
@@ -9438,7 +9617,7 @@ proc get_cde_params {} {
         set palf ""
         while {[gets $fh ln] != -1} {
             regexp "^\\*background:\[ \t]*(.*)\$" $ln nil textbg
-            regexp "^\\*foreground:\[ \t]*(.*)\$" $ln nil textbg
+            regexp "^\\*foreground:\[ \t]*(.*)\$" $ln nil textfg
             regexp "^\\*0\\*ColorPalette:\[ \t]*(.*)\$" $ln nil palette
             regexp "^Window.Color.Background:\[ \t]*(.*)\$" $ln nil textbg
             regexp "^Window.Color.Foreground:\[ \t]*(.*)\$" $ln nil textfg
@@ -9468,15 +9647,14 @@ proc get_cde_params {} {
                     gets $fh iconbg ;#control panel bg too
                     close $fh
 
-                    option add *Entry.highlightColor $activetitle userDefault
-                    option add *selectColor $activetitle userDefault
-                    option add *Text.highlightColor $wkspc4 userDefault
-                    option add *Dialog.Background $menubg userDefault
-                    option add *Menu.Background $menubg userDefault
-                    option add *Menubutton.Background $menubg userDefault
-                    option add *Menu.activeBackground $menubg userDefault
-                    option add *Menubutton.activeBackground $menubg userDefault
-                    set w(selcolor) $activetitle
+                    option add *Text.highlightColor $wkspc4
+                    option add *Dialog.Background $menubg
+                    option add *Menu.Background $menubg
+                    option add *Menu.activeBackground $menubg
+                    option add *Menu.activeForeground $fg
+                    option add *Menubutton.Background $menubg
+                    option add *Menubutton.activeBackground $menubg
+                    option add *Menubutton.activeForeground $fg
                 }
             }
         }
@@ -9487,34 +9665,47 @@ proc get_cde_params {} {
         return 0
     }
 
-    #option add *Button.font $guifont userDefault
-    #option add *Label.font $guifont userDefault
-    #option add *Menu.font $guifont userDefault
-    #option add *Menubutton.font $guifont userDefault
-    #option add *Dialog.msg.font $dlgfont userDefault
+    if {[info exists activetitle]} {
+      set hlbg $activetitle
+    } else {
+      set hlbg "#b24d7a"
+    }
+    set w(selcolor) $hlbg
+    option add *Button.activeBackground $bg
+    option add *Button.activeForeground $fg
+    option add *Canvas.Background $shadow
+    option add *Canvas.Foreground black
+    option add *Entry.Background $textbg
+    option add *Entry.Foreground $textfg
+    option add *Entry.readonlyBackground $bg
+    option add *Entry.highlightBackground $bg
+    option add *Entry.highlightColor $hlbg
+    option add *Listbox.background $textbg
+    option add *Listbox.selectBackground $w(selcolor)
+    option add *Listbox.selectForeground $fg
+    option add *Menu.borderWidth 1
+    option add *Scrollbar.activeBackground $bg
+    option add *Scrollbar.troughColor $shadow
+    option add *Text.Background $textbg
+    option add *Text.Foreground $textfg
+    option add *Text.highlightBackground $bg
 
-    option add *Text.Background $textbg userDefault
-    option add *Entry.Background $textbg userDefault
-    option add *Text.Foreground $textfg userDefault
-    option add *Entry.Foreground $textfg userDefault
-    option add *Button.activeBackground $bg userDefault
-    option add *Button.activeForeground $fg userDefault
-    option add *Scrollbar.activeBackground $bg userDefault
-    option add *Scrollbar.troughColor $shadow userDefault
-    option add *Canvas.Background $shadow userDefault
+    # Menu checkboxes
+    if {$tk_version >= 8.5} {
+      # This makes it look like the native CDE checkbox
+      option add *Menu.selectColor $fg
+      option add *Checkbutton.offRelief sunken
+      option add *Checkbutton.selectColor ""
+      option add *Radiobutton.selectColor ""
+      option add *Checkbutton.activeBackground $bg
+      option add *Checkbutton.activeForeground $fg
+    } else {
+      option add *selectColor $w(selcolor)
+    }
 
-    # These menu configs work if you use native menus.
-    option add *Menu.borderWidth 1 userDefault
-    option add *Menu.activeForeground $fg userDefault
-    option add *Menubutton.activeForeground $fg userDefault
-
-    # This draws a thin border around buttons
-    #option add *highlightBackground $bg userDefault
     # Suppress the border
     option add *HighlightThickness 0 userDefault
     # Add it back for text and entry widgets
-    option add *Text.highlightBackground $bg userDefault
-    option add *Entry.highlightBackground $bg userDefault
     option add *Text.HighlightThickness 2 userDefault
     option add *Entry.HighlightThickness 1 userDefault
 
@@ -9526,17 +9717,17 @@ proc get_cde_params {} {
 proc get_aqua_params {} {
     global w
 
-    # This doesn't seem to do anything?
-    set w(selcolor) lightsteelblue
-
     # button highlightbackground has to be the same as background
     # or else there are little white boxes around the button "pill"
     option add *background #ebebeb userDefault
     option add *Button.highlightBackground #ebebeb userDefault
+    # That totally screws up the menus unless you fix it with this
+    option add *Menu.Background white
+    option add *Menu.Foreground black
 
     option add *Entry.HighlightThickness 2 userDefault
     option add *Entry.highlightBackground $w(selcolor) userDefault
-    #option add *Canvas.background #eeeeee userDefault
+    option add *Canvas.background #eeeeee userDefault
     option add *Entry.background #ffffff userDefault
     option add *Text.background white userDefault
 }
