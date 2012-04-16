@@ -1,7 +1,7 @@
 #! /bin/bash
 
-#(C) 2009 C. Junghans
-# junghans@mpip-mainz.mpg.de
+#(C) 2012 C. Junghans
+# junghans@votca.org
 
 #version 0.1  XX.XX.XX -- initial version
 
@@ -29,7 +29,8 @@ OPTIONS:
 Examples:  ${0##*/} -q
            ${0##*/}
 
-Send bugs and comment to junghans@votca.org
+Report bugs and comments at https://code.google.com/p/cj-overlay/issues/list
+                         or junghans@votca.org
 eof
 }
 

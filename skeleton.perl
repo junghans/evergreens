@@ -1,7 +1,7 @@
 #! /usr/bin/perl -w
 #
 # (C) 2006-2008 Chr. Junghans
-# junghans@mpip-mainz.mpg.de
+# junghans@votca,org
 #
 #
 #version 0.1  , 08.07.08 -- initial version
@@ -41,7 +41,8 @@ OPTIONS:
 Examples:  $progname -q
            $progname
 
-Send comments and bugs to: junghans\@mpip-mainz.mpg.de
+Report bugs and comments at https://code.google.com/p/cj-overlay/issues/list
+                         or junghans\@votca.org
 END
 		exit;
 	}
