@@ -20,6 +20,7 @@
 #version 0.1.2,  22.03.12 -- added gp slide rule
 #version 0.1.3,  22.03.12 -- make pov transparent to save space
 #version 0.1.4,  10.04.12 -- remove most of gp2eps hacks
+#version 0.1.5,  16.05.12 -- removed cirtual deps + gp2eps update
 
 # A Makefile using this include file usually look like this:
 #
@@ -47,7 +48,7 @@ BBOX_ADD=$(SCRIPTDIR)/bbox_add.pl
 
 #can be overwritten from outside - make GNUPLOT=gnuplot48
 GNUPLOT=gnuplot
-GPOPTS=--gnuplot $(GNUPLOT) -s 0.5 -p 10 --ratioscale 1 --textwidth 17.9219 --margins ,0.9,0.5, --force
+GPOPTS=--gnuplot $(GNUPLOT) -p 10 --margins ,0.9,0.5, --force
 #'--halt-on-error' to avoid interactive prompting
 LATEXMKOPTS=-e '$$latex=q/latex --halt-on-error %O %S/'
 
@@ -68,8 +69,8 @@ root_quick:
 %.ps: %.dvi
 	dvips $<
 
-#make it depend on dummy to run LATEXMK everytime, it will check all deps
-%.dvi: %.tex all dummy
+#make it depend on dummy to run LATEXMK everytime, it will check subdirs first
+%.dvi: %.tex $(SUBDIRS) dummy
 	@#rm target if latexmk failed, worked better than DELETE_ON_ERROR
 	$(LATEXMK) $(LATEXMKOPTS) -dvi $< || rm -f $@
 	@#rm has exit code 0
