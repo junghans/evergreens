@@ -1,12 +1,6 @@
 #! /usr/bin/awk -f
 
 BEGIN{
-   #Version check, use gawk only !
-   "awk --version" | getline version;
-   if ( version !~ /GNU Awk/)
-   {
-            print "#WARING: This is not gawk (GNU awk). Could cause problem!" > "/dev/stderr";
-   }
    print "#This is in2m4 0.4 (02.10.08) -> help with \"in2m4 -- --help\"";
    #parse header
    if ( ARGV[1] == "--help" ) {

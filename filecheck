@@ -64,7 +64,7 @@ while [ "${1#-}" != "$1" ]; do
     echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
     exit 0;;
   *)
-   echo Unknown option \'$1\' - ignored
+   echo "Unknown option '$1' - ignored"
    shift ;;
  esac
 done
@@ -104,7 +104,7 @@ for myfile in $*; do
        newchecksum="$(sed '$a\' $myfile | $algo | awk '{print $1}')"
        lastline="${co}${linestart} ${algo} $newchecksum"
        sed -i "\$a\\$lastline" $myfile
-       echo checksum \($algo\) for file \"$myfile\" updated!
+       echo "checksum ($algo) for file '$myfile' updated!"
        continue
     fi
     #file already has a md5sum line at the end
@@ -113,13 +113,12 @@ for myfile in $*; do
        checksum="$(echo $lastline | awk '{print $3}')"
        newchecksum="$(sed '$d' $myfile | $algo | awk '{print $1}')"
        if [ "$newchecksum" = "$checksum" ]; then
-          echo checksum \($algo\) for file \"$myfile\" correct!
+          echo "checksum ($algo) for file '$myfile' correct!"
        else
-          echo checksum \($algo\) for file \"$myfile\" NOT correct!
+          echo "checksum ($algo) for file '$myfile' NOT correct!"
        fi
     #no md5sum found
     else
-       echo No checksum found in file \"$myfile\" \(try --update\)!
+       echo "No checksum found in file '$myfile' (try --update)!"
     fi
 done
-#fs md5sum 21bcf7169af426bd2654ee696148252e
