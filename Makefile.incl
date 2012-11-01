@@ -21,6 +21,7 @@
 #version 0.1.3,  22.03.12 -- make pov transparent to save space
 #version 0.1.4,  10.04.12 -- remove most of gp2eps hacks
 #version 0.1.5,  16.05.12 -- removed cirtual deps + gp2eps update
+#version 0.1.6,  01.11.12 -- also pack local sty file in make tar
 
 # A Makefile using this include file usually look like this:
 #
@@ -80,7 +81,7 @@ root_quick:
 	@#dirty sed hack ahead to grep files used by latexmk to produce the pdf
 	@#do not pack gobal files (begining with /)
 	tar cvzhf $@ $+ \
-  	   `sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\)\)".*$$/\1/p' $*.fdb_latexmk`
+  	   `sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\|sty\)\)".*$$/\1/p' $*.fdb_latexmk`
 
 %.eps: %.gp $(ROOTDIR)/Makefile.incl $(GP2EPS)
 	$(GP2EPS) $(GPOPTS) $<
