@@ -17,20 +17,16 @@ if [ $# -lt 2 ]; then
 fi
 
 case $1 in
-  mmm)
-    towho="muellerm@mpip-mainz.mpg.de";;
-  burkhard)
-    towho="duenweg@mpip-mainz.mpg.de";;
+  afv)
+    towho="afv@lanl.gov";;
   me)
-    towho="$USER@mpip-mainz.mpg.de";;
-  matej)
-    towho="praprot@mpip-mainz.mpg.de";;
+    towho="$USER@lanl.gov";;
   *)
     if [ -n "$(finger "$1" 2>&1 | grep 'no such user')" ]; then
       echo User not found please check!
       exit
     fi
-    towho="$1@mpip-mainz.mpg.de";;
+    towho="$1@lanl.gov";;
 esac
 shift
 
