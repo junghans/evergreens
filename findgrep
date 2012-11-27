@@ -5,11 +5,5 @@ die() {
   exit 1
 }
 
-if [ "$1" = "-v" ]; then
-  shift
-  [ -z "$2" ] && die "Missing argument"
-  echo "find . -name '$1' -exec grep --color=auto -nHE -e '$2' {} \;"
-fi
-[ -z "$2" ] && die "Missing argument"
-
-find . -name "$1" -exec grep --color=auto -nHE -e "$2" {} \;
+[[ -z $1 || -z $2 ]] && die "Missing argument"
+find . -name "${!#}" -type f -exec grep --color=always -nHE "${@:1:$#-1}" {} + | sed 's/:/ :/'
