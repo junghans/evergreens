@@ -5,5 +5,7 @@ die() {
   exit 1
 }
 
+[[ -t 1 ]] && color="always" || color="never"
+
 [[ -z $1 || -z $2 ]] && die "Missing argument"
-find . -name "${!#}" -type f -exec grep --color=always -nHE "${@:1:$#-1}" {} + | sed 's/:/ :/'
+find . -name "${!#}" -type f -exec grep --color="$color" -nHE "${@:1:$#-1}" {} + | sed 's/:/ :/'
