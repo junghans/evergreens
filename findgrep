@@ -7,5 +7,6 @@ die() {
 
 [[ -t 1 ]] && color="always" || color="never"
 
-[[ -z $1 || -z $2 ]] && die "Missing argument"
+[[ -z $1 ]] && die "Usage: ${0##*/} [<grep options>] <grep pattern> <glob pattern> OR ${0##*/} <grep pattern>"
+[[ -z $2 ]] && set -- "$1" "*"
 find . -name "${!#}" -type f -exec grep --color="$color" -nHE "${@:1:$#-1}" {} + | sed 's/:/ :/'
