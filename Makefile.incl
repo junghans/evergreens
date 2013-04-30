@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#version 0.1.0,  28.09.11 -- initial version
+#version 0.1.0,  28.09.11 -- initial version (after years without version)
 #version 0.1.1,  05.10.11 -- fixed cwd problem in povray rule
 #version 0.1.2,  22.03.12 -- added gp slide rule
 #version 0.1.3,  22.03.12 -- make pov transparent to save space
@@ -23,6 +23,7 @@
 #version 0.1.5,  16.05.12 -- removed cirtual deps + gp2eps update
 #version 0.1.6,  01.11.12 -- also pack local sty file in make tar
 #version 0.1.7,  02.11.12 -- added checks for SCRIPTDIR and ROOTDIR
+#version 0.1.8,  40.04.13 -- fail back to git in ROOTDIR if hg root fails
 
 # A Makefile using this include file usually look like this:
 #
@@ -40,7 +41,7 @@ all: check_dirs $(SUBDIRS) $(GNUPLOT_PICS) $(FIG_PICS) $(OTHER_PICS)
 
 SHELL=/bin/bash
 #in case of svn hardcode the path!
-ROOTDIR=$(shell hg root)
+ROOTDIR=$(shell hg root 2>/dev/null || git rev-parse --show-toplevel 2> /dev/null)
 SCRIPTDIR=$(ROOTDIR)/scripts
 
 LATEXMK=$(SCRIPTDIR)/latexmk.pl
@@ -57,7 +58,6 @@ LATEXMKOPTS=-e '$$latex=q/latex --halt-on-error %O %S/'
 .PHONY: clean subdirclean dummy root root_quick all check_dirs
 
 check_dirs:
-	echo $(ME)
 	@[ -d "$(ROOTDIR)" ] || ( echo ROOTDIR variable in Makefile.incl seems to be wrong; exit 1; )
 	@[ -d "$(SCRIPTDIR)" ] || ( echo SCRIPTDIR variable in Makefile.incl seems to be wrong; exit 1; )
 
