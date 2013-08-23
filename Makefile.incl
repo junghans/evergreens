@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#version 0.1.0,  28.09.11 -- initial version (after years without version)
+#version 0.1.0,  28.09.11 -- initial version (after years with version)
 #version 0.1.1,  05.10.11 -- fixed cwd problem in povray rule
 #version 0.1.2,  22.03.12 -- added gp slide rule
 #version 0.1.3,  22.03.12 -- make pov transparent to save space
@@ -23,7 +23,8 @@
 #version 0.1.5,  16.05.12 -- removed cirtual deps + gp2eps update
 #version 0.1.6,  01.11.12 -- also pack local sty file in make tar
 #version 0.1.7,  02.11.12 -- added checks for SCRIPTDIR and ROOTDIR
-#version 0.1.8,  40.04.13 -- fail back to git in ROOTDIR if hg root fails
+#version 0.1.8,  30.04.13 -- fail back to git in ROOTDIR if hg root fails
+#version 0.2.0,  23.08.13 -- major rework of deps
 
 # A Makefile using this include file usually look like this:
 #
@@ -36,7 +37,7 @@
 #	./clean.sh
 #
 
-#SUBDIRS GNUPLOT_PICS and FIG_PICS should be set BEFORE include ./Makefile.incl
+#SUBDIRS GNUPLOT_PICS and FIG_PICS should be set BEFORE including ./Makefile.incl
 all: check_dirs $(SUBDIRS) $(GNUPLOT_PICS) $(FIG_PICS) $(OTHER_PICS)
 
 SHELL=/bin/bash
@@ -46,16 +47,15 @@ SCRIPTDIR=$(ROOTDIR)/scripts
 
 LATEXMK=$(SCRIPTDIR)/latexmk.pl
 GP2EPS=$(SCRIPTDIR)/gp2eps
-TEX2EPS=$(SCRIPTDIR)/tex2eps
-BBOX_ADD=$(SCRIPTDIR)/bbox_add.pl
 
-#can be overwritten from outside - make GNUPLOT=gnuplot48
-GNUPLOT=gnuplot
-GPOPTS=--gnuplot $(GNUPLOT) -p 10 --margins ,0.9,0.5, --force
+#Useful defaults can be overwritten from outside - make GNUPLOT=gnuplot48 or in Makefile
+GNUPLOT?=gnuplot
+GPOPTS?=--gnuplot $(GNUPLOT) -p 10 --margins ,0.9,0.5, --force
+POVOPTS?= -D +A -W800 -H800
 #'--halt-on-error' to avoid interactive prompting
-LATEXMKOPTS=-e '$$latex=q/latex --halt-on-error %O %S/'
+LATEXMKOPTS?=-e '$$latex=q/latex --halt-on-error %O %S/'
 
-.PHONY: clean subdirclean dummy root root_quick all check_dirs
+.PHONY: clean subdirclean localclean gpclean figclean dummy root root_quick all check_dirs
 
 check_dirs:
 	@[ -d "$(ROOTDIR)" ] || ( echo ROOTDIR variable in Makefile.incl seems to be wrong; exit 1; )
@@ -87,10 +87,14 @@ root_quick:
 	@#dirty sed hack ahead to grep files used by latexmk to produce the pdf
 	@#do not pack gobal files (begining with /)
 	tar cvzhf $@ $+ \
-  	   `sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\|sty\)\)".*$$/\1/p' $*.fdb_latexmk`
+  		`sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\|sty\)\)".*$$/\1/p' $*.fdb_latexmk`
 
-%.eps: %.gp $(ROOTDIR)/Makefile.incl $(GP2EPS)
+%.eps: %.gp .deps.gpopts $(GP2EPS)
 	$(GP2EPS) $(GPOPTS) $<
+
+.deps.gpopts: dummy
+	@[ -f $@ ] || touch $@
+	@echo "GPOPTS=$(GPOPTS)" | cmp -s $@ - || echo "GPOPTS=$(GPOPTS)" > $@
 
 %.eps: %.tex
 	@[ ! -f $*.gp ] || ( echo "$*.gp was found, but the '.tex to .eps' rule was called! That means, you have to remove $*.gp or $*.tex first!"; exit 1; )
@@ -99,11 +103,15 @@ root_quick:
 	dvips -E $*.dvi -o $@
 	rm -f $*.log $*.aux $*.dvi
 
-%.png: %.pov $(ROOTDIR)/Makefile.incl
+%.png: %.pov .deps.povopts
 	@#povray can only write to cwd
 	cd $(<D); \
-	povray -D +A -W800 -H800 $(<F)
+	povray $(POVOPTS) $(<F)
 	convert $@ -transparent white $@
+
+.deps.povopts: dummy
+	@[ -f $@ ] || touch $@
+	@echo "POVOPTS=$(POVOPTS)" | cmp -s $@ - || echo "POVOPTS=$(POVOPTS)" > $@
 
 %.eps: %.jpg
 	convert $< $@
@@ -114,43 +122,43 @@ root_quick:
 %.eps: %.gif
 	convert $< $@
 
+%.eps: %.pdf
+	convert $< $@
+
+%.eps: %.tiff
+	convert $< $@
+
 %.eps: %.fig
 	fig2dev -L eps $< $@
 
-GP_FILES=$(patsubst %.eps,%.gp,$(GNUPLOT_PICS))
+GP_DEPS=$(patsubst %,.deps.%,$(GNUPLOT_PICS))
 #if we have gp pics here
-ifneq "$(strip $(GP_FILES))" ""
-all: Makefile.plotdeps
+ifneq "$(strip $(GNUPLOT_PICS))" ""
+all: $(GP_DEPS)
+gpclean:
+	rm -f $(GNUPLOT_PICS) $(GP_DEPS)
 #at the first time Makefile.gpdeps does not exist
 #however then deps anyway do not matter
-include Makefile.plotdeps
+-include $(GP_DEPS)
 endif
 
-Makefile.plotdeps: $(GP_FILES)
-	rm -f $@
-	@for i in $(GP_FILES); do\
-	  echo $(GP2EPS) --deps $$i \>\> $@; \
-	  $(GP2EPS) --deps $$i >> $@;\
-	  echo >> $@;\
-	done
+.deps.%.eps: %.gp $(GP2EPS)
+	$(GP2EPS) --deps $< > $@
 
-FIG_FILES=$(patsubst %.eps,%.fig,$(FIG_PICS))
+FIG_DEPS=$(patsubst %,.deps.%,$(FIG_PICS))
 #if we have fig pics here
-ifneq "$(strip $(FIG_FILES))" ""
-all: Makefile.figdeps
+ifneq "$(strip $(FIG_PICS))" ""
+all: $(FIG_DEPS)
+figclean:
+	rm -rf $(FIG_PICS) $(FIG_DEPS)
 #at the first time Makefile.figdeps does not exist
 #however then deps anyway do not matter
-include Makefile.figdeps
+-include $(FIG_DEPS)
 endif
 
-Makefile.figdeps: $(FIG_FILES)
-	rm -f $@
-	@for i in $(FIG_FILES); do\
-	  echo Scanning $$i for deps; \
-	  sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $$i | \
-	  tr -d '\n' | sed -e "s/^/$$i:/" -e 's/fig/eps/' >> $@; \
-	  echo >> $@;\
-	done
+.deps.%.eps: %.fig
+	@echo Scanning $< for deps
+	@sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $< | tr -d '\n' | sed -e "s/^/$<:/" -e 's/fig/eps/' > $@
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
@@ -162,11 +170,5 @@ subdirclean:
 	  $(MAKE) $(MFLAGS) -C $$i clean || exit 1; \
 	done
 
-clean: subdirclean localclean
+clean: subdirclean gpclean figclean localclean
 	rm -f *~ *.bak *.aux $(CLEANFILES) $(OTHER_PICS)
-	rm -f $(FIG_PICS) Makefile.figdeps
-	rm -f $(GNUPLOT_PICS) Makefile.plotdeps
-
-#just an empty target to allow to be overwritten
-localclean:
-
