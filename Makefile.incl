@@ -25,6 +25,7 @@
 #version 0.1.7,  02.11.12 -- added checks for SCRIPTDIR and ROOTDIR
 #version 0.1.8,  30.04.13 -- fail back to git in ROOTDIR if hg root fails
 #version 0.2.0,  23.08.13 -- major rework of deps
+#version 0.2.0,  04.09.13 -- update make clean
 
 # A Makefile using this include file usually look like this:
 #
@@ -134,12 +135,11 @@ root_quick:
 GP_DEPS=$(patsubst %,.deps.%,$(GNUPLOT_PICS))
 #if we have gp pics here
 ifneq "$(strip $(GNUPLOT_PICS))" ""
-all: $(GP_DEPS)
 gpclean:
-	rm -f $(GNUPLOT_PICS) $(GP_DEPS)
-#at the first time Makefile.gpdeps does not exist
-#however then deps anyway do not matter
+	rm -f $(GNUPLOT_PICS) $(GP_DEPS) .deps.gpopts
+ifneq "$(MAKECMDGOALS)" "clean"
 -include $(GP_DEPS)
+endif
 endif
 
 .deps.%.eps: %.gp $(GP2EPS)
@@ -148,12 +148,11 @@ endif
 FIG_DEPS=$(patsubst %,.deps.%,$(FIG_PICS))
 #if we have fig pics here
 ifneq "$(strip $(FIG_PICS))" ""
-all: $(FIG_DEPS)
 figclean:
 	rm -rf $(FIG_PICS) $(FIG_DEPS)
-#at the first time Makefile.figdeps does not exist
-#however then deps anyway do not matter
+ifneq "$(MAKECMDGOALS)" "clean"
 -include $(FIG_DEPS)
+endif
 endif
 
 .deps.%.eps: %.fig
@@ -171,4 +170,4 @@ subdirclean:
 	done
 
 clean: subdirclean gpclean figclean localclean
-	rm -f *~ *.bak *.aux $(CLEANFILES) $(OTHER_PICS)
+	rm -f *~ *.bak *.aux $(CLEANFILES) $(OTHER_PICS) .deps.povopts
