@@ -136,7 +136,7 @@ GP_DEPS=$(patsubst %,.deps.%,$(GNUPLOT_PICS))
 #if we have gp pics here
 ifneq "$(strip $(GNUPLOT_PICS))" ""
 gpclean:
-	rm -f $(GNUPLOT_PICS) $(GP_DEPS) .deps.gpopts
+	rm -f $(GNUPLOT_PICS) $(GP_DEPS) .deps.gpopts gp2eps_tmp*
 ifneq "$(MAKECMDGOALS)" "clean"
 -include $(GP_DEPS)
 endif
