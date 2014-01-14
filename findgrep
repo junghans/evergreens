@@ -9,4 +9,4 @@ die() {
 
 [[ -z $1 ]] && die "Usage: ${0##*/} [<grep options>] <grep pattern> <glob pattern> OR ${0##*/} <grep pattern>"
 [[ -z $2 ]] && set -- "$1" "*"
-grep --color="$color" -n -r --include "${!#}" "${@:1:$#-1}" | sed 's/:/ :/'
+grep --color="$color" -n -r --include "${!#}" "${@:1:$#-1}" . | sed 's/:/ :/'
