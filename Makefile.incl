@@ -53,8 +53,6 @@ GP2EPS=$(SCRIPTDIR)/gp2eps
 GNUPLOT?=gnuplot
 GPOPTS?=--gnuplot $(GNUPLOT) -p 10 --margins ,0.9,0.5, --force
 POVOPTS?= -D +A -W800 -H800
-#'--halt-on-error' to avoid interactive prompting
-LATEXMKOPTS?=-e '$$latex=q/latex --halt-on-error %O %S/'
 
 .PHONY: clean subdirclean localclean gpclean figclean dummy root root_quick all check_dirs
 
@@ -79,8 +77,8 @@ root_quick:
 
 #make it depend on dummy to run LATEXMK everytime, it will check subdirs first
 %.dvi: %.tex $(SUBDIRS) dummy
-	@#rm target if latexmk failed, worked better than DELETE_ON_ERROR
-	$(LATEXMK) $(LATEXMKOPTS) -dvi $< || rm -f $@
+	@#rm target if latexmk failed, workes better than DELETE_ON_ERROR
+	$(LATEXMK) -halt-on-error -dvi $< || rm -f $@
 	@#rm has exit code 0
 	@[ -f $@ ]
 
