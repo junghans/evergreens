@@ -25,7 +25,8 @@
 #version 0.1.7,  02.11.12 -- added checks for SCRIPTDIR and ROOTDIR
 #version 0.1.8,  30.04.13 -- fail back to git in ROOTDIR if hg root fails
 #version 0.2.0,  23.08.13 -- major rework of deps
-#version 0.2.0,  04.09.13 -- update make clean
+#version 0.2.1,  04.09.13 -- update make clean
+#version 0.2.2,  11.12.14 -- added gp to pdf rule
 
 # A Makefile using this include file usually look like this:
 #
@@ -90,6 +91,9 @@ root_quick:
 
 %.eps: %.gp .deps.gpopts $(GP2EPS)
 	$(GP2EPS) $(GPOPTS) $<
+
+%.pdf: %.gp .deps.gpopts $(GP2EPS)
+	$(GP2EPS) $(GPOPTS) -o $@ $<
 
 .deps.gpopts: dummy
 	@[ -f $@ ] || touch $@
