@@ -27,6 +27,7 @@
 #version 0.2.0,  23.08.13 -- major rework of deps
 #version 0.2.1,  04.09.13 -- update make clean
 #version 0.2.2,  11.12.14 -- added gp to pdf rule
+#version 0.3.0,  12.12.14 -- make gp/fig + deps into a single multi target rule
 
 # A Makefile using this include file usually look like this:
 #
@@ -89,11 +90,13 @@ root_quick:
 	tar cvzhf $@ $+ \
   		`sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\|sty\)\)".*$$/\1/p' $*.fdb_latexmk`
 
-%.eps: %.gp .deps.gpopts $(GP2EPS)
-	$(GP2EPS) $(GPOPTS) $<
+%.eps .deps.%.eps: %.gp .deps.gpopts $(GP2EPS)
+	$(GP2EPS) --deps -o $*.eps $< > .deps.$*.eps
+	$(GP2EPS) $(GPOPTS) -o $*.eps $<
 
-%.pdf: %.gp .deps.gpopts $(GP2EPS)
-	$(GP2EPS) $(GPOPTS) -o $@ $<
+%.pdf .deps.%.pdf: %.gp .deps.gpopts $(GP2EPS)
+	$(GP2EPS) --deps -o $*.pdf $< > .deps.$*.pdf
+	$(GP2EPS) $(GPOPTS) -o $*.pdf $<
 
 .deps.gpopts: dummy
 	@[ -f $@ ] || touch $@
@@ -131,8 +134,10 @@ root_quick:
 %.eps: %.tiff
 	convert $< $@
 
-%.eps: %.fig
-	fig2dev -L eps $< $@
+%.eps .deps.%.eps: %.fig
+	@echo Scanning $< for deps
+	@sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $< | tr -d '\n' | sed -e "s/^/$<:/" -e 's/fig/eps/' > .deps.$*.eps
+	fig2dev -L eps $< $*.eps
 
 GP_DEPS=$(patsubst %,.deps.%,$(GNUPLOT_PICS))
 #if we have gp pics here
@@ -144,9 +149,6 @@ ifneq "$(MAKECMDGOALS)" "clean"
 endif
 endif
 
-.deps.%.eps: %.gp $(GP2EPS)
-	$(GP2EPS) --deps $< > $@
-
 FIG_DEPS=$(patsubst %,.deps.%,$(FIG_PICS))
 #if we have fig pics here
 ifneq "$(strip $(FIG_PICS))" ""
@@ -156,10 +158,6 @@ ifneq "$(MAKECMDGOALS)" "clean"
 -include $(FIG_DEPS)
 endif
 endif
-
-.deps.%.eps: %.fig
-	@echo Scanning $< for deps
-	@sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $< | tr -d '\n' | sed -e "s/^/$<:/" -e 's/fig/eps/' > $@
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
