@@ -1,21 +1,25 @@
-#! /bin/bash
+#!/bin/bash
 #C. Junghans
 #This script was motivated by Thomas Kahle (www.pi-ist-genau-3.de)
 #who has a guard script of his friend Georg, which was much to 
-#complikated for me !
+#complicated for me !
 
-#version 0.9  19.09.07 -- added --xpdf
-#version 0.10 10.10.07 -- allowing short opts
-#version 0.11 18.10.07 -- remove string bug in short opts
-#version 0.12 06.02.08 -- remove base name
-#version 0.13 06.03.08 -- add --self
-#version 0.14 16.04.08 -- better version system
-#version 0.2  04.06.12 -- major clean up
+#version 0.9.0  19.09.07 -- added --xpdf
+#version 0.1.0  10.10.07 -- allowing short opts
+#version 0.1.1  18.10.07 -- remove string bug in short opts
+#version 0.1.2  06.02.08 -- remove base name
+#version 0.1.3  06.03.08 -- add --self
+#version 0.1.4  16.04.08 -- better version system
+#version 0.2.0  04.06.12 -- major clean up
+#version 0.3.0  17.12.14 -- using inotifywait if available
 
 usage="Usage: ${0##*/} file1 <file2> ..."
-runcom="make"
-quiet="no"
+cmd="make"
+quiet=
 waittime=3
+cksum=
+self=
+r=
 
 die() {
   echo -e "$*" >&2
@@ -28,9 +32,11 @@ Run a command if file is changed
 $usage
 OPTIONS:
 -e, --exec COMMAND  Run the command COMMAND
-                    Default: $runcom
+                    Default: $cmd
 -t, --time SEC      Wait SEC secs until run command
                     Default: $waittime
+-c, --cksum CMD     Force use CMD as checksum program
+		    Default: sha1sum (if inotifywait not found)
 -s, --self          Add first file to command
 -q, --quiet         Be a little bit quiet
 -h, --help          Show this help
@@ -40,25 +46,32 @@ Examples:  ${0##*/} bla.tex
            ${0##*/} -e "make -f other_makefile" some_file
            ${0##*/} -e "povray +A -W800 -H600 file.pov" file.pov
 
-Send bugs and comment to junghans@mpip-mainz.mpg.de
+Send bugs and comment to junghans@votca.org
 eof
 }
 
-while [ "${1#-}" != "$1" ]; do
- if [ "${1#--}" = "$1" ] && [ -n "${1:2}" ]; then
-    if [ "${1#-[et]}" != "${1}" ]; then
-       set -- "${1:0:2}" "${1:2}" "${@:2}"
-    else
-       set -- "${1:0:2}" "-${1:2}" "${@:2}"
+shopt -s extglob
+while [[ ${1} = -?* ]]; do
+  if [[ ${1} = --??*=* ]]; then # case --xx=yy
+    set -- "${1%%=*}" "${1#*=}" "${@:2}" # --xx=yy to --xx yy
+  elif [[ ${1} = -[^-]?* ]]; then # case -xy split
+    if [[ ${1} = -[cet]* ]]; then #short opts with arguments
+       set -- "${1:0:2}" "${1:2}" "${@:2}" # -xy to -x y
+    else #short opts without arguments
+       set -- "${1:0:2}" "-${1:2}" "${@:2}" # -xy to -x -y
     fi
- fi
- case $1 in 
+  fi
+ case "$1" in 
    -e | --exec)
-    runcom=$2
+    cmd=$2
     shift 2;;
    -t | --time)
-    waittime=$2
+    waittime="$2"
     [[ $waittime -gt 0 ]] || die "Argument of -t should be int and bigger than 0"
+    shift 2;;
+   -c | --checksum)
+    cksum="$2"
+    [[ $(type -p $cksum) ]] || die "$cksum not found"
     shift 2;;
    -q | --quiet)
     quiet="yes"
@@ -78,41 +91,61 @@ while [ "${1#-}" != "$1" ]; do
   *)
    die "Unknown option '$1'"
    shift ;;
+  --)
+   shift
+   break ;;
  esac
 done
 
 [[ -z $1 ]] && die "No file given !\n$usage\nHelp with -h"
 
-[[ $self = yes ]] && runcom="$runcom $1"
+if [[ ! $cksum && $(type -p inotifywait) ]]; then 
+  echo "Using inotifywait instead of checksums"
+else
+  : ${cksum:=sha1sum}
+  echo "Using $cksum for checksums"
+fi
 
-i=0
 for f in "$@"; do
-  filename[$i]=$f
-  [[ -f $f ]] || die "$f not found or readable"
-  checksum[$i]=$(sha1sum $f)
-  (( i++ ))
+  if [[ ! -f $f ]] ; then 
+    [[ $cksum ]] && die "$f not found or readable or not a file"
+    #inotifywait supports dirs
+    [[ -d $f ]] || die "$f not found"
+    r=-r
+  fi
+  [[ $cksum ]] && checksum[${#filename[@]}]=$($cksum $f)
+  filename[${#filename[@]}]=$f
 done
 
-echo "Guarding files ${filename[*]}"
-echo "for doing '$runcom' every $waittime secs"
+echo "Guarding files ${filename[@]}"
+echo "for doing '$cmd' every $waittime secs"
 
-$runcom
+$cmd ${self:+$1}
 
 echo ${0##*/} is waiting...  
 while true; do
-  sleep $waittime
-  run="no"
-  [[ "$quiet" = "no" ]] && echo "${0##*/} is waiting..."
-  for (( i=0;i<${#filename[*]};i++)); do
-    newchecksum=$(sha1sum ${filename[$i]})
-    if [[ $newchecksum != ${checksum[$i]} ]]; then
-      echo "'${filename[$i]}' has changed!"
-      checksum[$i]=$newchecksum
-      run="yes"
-    fi
-  done
-  if [[ $run = yes ]]; then
-    $runcom
+  [[ $quiet ]] && echo "${0##*/} is waiting..."
+  run=
+  if [[ $cksum ]]; then
+    sleep $waittime
+    for (( i=0;i<${#filename[@]};i++)); do
+      newchecksum=$($cksum ${filename[$i]})
+      if [[ $newchecksum != ${checksum[$i]} ]]; then
+        echo "'${filename[$i]}' has changed!"
+        checksum[$i]=$newchecksum
+        run="yes"
+      fi
+    done
+  else
+    #vim does a move_self which makes files disappear for a sec
+    for f in "${filename[@]}"; do
+      while [[ ! -f $f && ! -d $f ]]; do :; done
+    done # 
+    inotifywait $r ${quiet:+-q} -e modify,move_self,create "${filename[@]}"
+    run=yes
+  fi
+  if [[ $run ]]; then
+    $cmd ${self:+$1}
     echo ${0##*/} is waiting...
   fi
 done
