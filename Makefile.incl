@@ -28,6 +28,7 @@
 #version 0.2.1,  04.09.13 -- update make clean
 #version 0.2.2,  11.12.14 -- added gp to pdf rule
 #version 0.3.0,  12.12.14 -- make gp/fig + deps into a single multi target rule
+#version 0.3.1,  17.12.14 -- more clean up
 
 # A Makefile using this include file usually look like this:
 #
@@ -35,9 +36,16 @@
 #FIG_PICS=123.eps 456.eps
 #GNUPLOT_PICS= plot1.eps plot2.eps
 #include ./Makefile.incl
+#NAME=report
+#all: $(NAME).pdf
+#
+#ifneq "$(MAKECMDGOALS)" "clean"
+#-include $(NAME).tex.deps
+#endif
+#
 #CLEANFILES=123.d fit.log
 #localclean:
-#	./clean.sh
+#	$(LATEXMK) -CA $(NAME).tex
 #
 
 #SUBDIRS GNUPLOT_PICS and FIG_PICS should be set BEFORE including ./Makefile.incl
@@ -77,26 +85,35 @@ root_quick:
 %.ps: %.dvi
 	dvips $<
 
-#make it depend on dummy to run LATEXMK everytime, it will check subdirs first
-%.dvi: %.tex $(SUBDIRS) dummy
-	@#rm target if latexmk failed, workes better than DELETE_ON_ERROR
-	$(LATEXMK) -halt-on-error -dvi $< || rm -f $@
-	@#rm has exit code 0
+#Intermediate file are sometimes useful for error analysis
+#keep the default
+#DELETE_ON_ERROR: ; 
+
+%.dvi %.dvi.deps %.fdb_latexmk: %.tex $(SUBDIRS)
+	@#emulate DELETE_ON_ERROR for this target to avoid half-broken dvi files
+	#keep %.dvi.deps as it might help in the next run
+	$(LATEXMK) -halt-on-error -dvi -M -MP -MF $*.tex.deps $< || rm -vf $*.{dvi,fdb_latexmk}
 	@[ -f $@ ]
 
-%.tar.gz: %.pdf $(TARFILES)
+%.tar.gz: %.pdf %.fdb_latexmk $(TARFILES)
 	@#dirty sed hack ahead to grep files used by latexmk to produce the pdf
 	@#do not pack gobal files (begining with /)
 	tar cvzhf $@ $+ \
   		`sed -n 's/^[[:space:]]*"\([^/][^"]*\.\(bib\|tex\|eps\|cls\|sty\)\)".*$$/\1/p' $*.fdb_latexmk`
 
-%.eps .deps.%.eps: %.gp .deps.gpopts $(GP2EPS)
-	$(GP2EPS) --deps -o $*.eps $< > .deps.$*.eps
-	$(GP2EPS) $(GPOPTS) -o $*.eps $<
+#cd part to support subdirs
+%.eps.deps: %.gp .deps.gpopts $(GP2EPS)
+	cd $(*D); $(GP2EPS) --deps -o $(*F).eps $(<F) > $(@F)
 
-%.pdf .deps.%.pdf: %.gp .deps.gpopts $(GP2EPS)
-	$(GP2EPS) --deps -o $*.pdf $< > .deps.$*.pdf
-	$(GP2EPS) $(GPOPTS) -o $*.pdf $<
+#depends on %deps in case there are local data generation rules
+%.eps: %.gp %.eps.deps .deps.gpopts $(GP2EPS)
+	cd $(*D); $(GP2EPS) $(GPOPTS) -o $(@F) $(<F)
+
+%.pdf.deps: %.gp .deps.gpopts $(GP2EPS)
+	cd $(*D); $(GP2EPS) --deps -o $*.pdf $< > $(@F)
+
+%.pdf: %.gp %.pdf.deps .deps.gpopts $(GP2EPS)
+	$(GP2EPS) $(GPOPTS) -o $@ $<
 
 .deps.gpopts: dummy
 	@[ -f $@ ] || touch $@
@@ -134,12 +151,12 @@ root_quick:
 %.eps: %.tiff
 	convert $< $@
 
-%.eps .deps.%.eps: %.fig
+%.eps %.eps.deps: %.fig
 	@echo Scanning $< for deps
 	@sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $< | tr -d '\n' | sed -e "s/^/$<:/" -e 's/fig/eps/' > .deps.$*.eps
 	fig2dev -L eps $< $*.eps
 
-GP_DEPS=$(patsubst %,.deps.%,$(GNUPLOT_PICS))
+GP_DEPS=$(patsubst %,%.deps,$(GNUPLOT_PICS))
 #if we have gp pics here
 ifneq "$(strip $(GNUPLOT_PICS))" ""
 gpclean:
@@ -149,7 +166,7 @@ ifneq "$(MAKECMDGOALS)" "clean"
 endif
 endif
 
-FIG_DEPS=$(patsubst %,.deps.%,$(FIG_PICS))
+FIG_DEPS=$(patsubst %,%.deps,$(FIG_PICS))
 #if we have fig pics here
 ifneq "$(strip $(FIG_PICS))" ""
 figclean:
