@@ -45,7 +45,7 @@
 #
 #CLEANFILES=123.d fit.log
 #localclean:
-#	$(LATEXMK) -CA $(NAME).tex
+#	$(LATEXMK) -M -MF $(NAME).tex.deps -CA $(NAME).tex
 #
 
 #SUBDIRS GNUPLOT_PICS and FIG_PICS should be set BEFORE including ./Makefile.incl
