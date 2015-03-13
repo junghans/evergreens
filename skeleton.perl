@@ -41,7 +41,7 @@ OPTIONS:
 Examples:  $progname -q
            $progname
 
-Report bugs and comments at https://code.google.com/p/cj-overlay/issues/list
+Report bugs and comments at https://github.com/junghans/cwdiff/issues
                          or junghans\@votca.org
 END
 		exit;
