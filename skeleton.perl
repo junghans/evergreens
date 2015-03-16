@@ -1,10 +1,23 @@
 #! /usr/bin/perl -w
 #
-# (C) 2006-2008 Chr. Junghans
-# junghans@votca,org
+# Copyright (C) 2012-2015 Christoph Junghans
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
-#version 0.1  , 08.07.08 -- initial version
+#version 0.1, 08.07.08 -- initial version
 use strict;
 
 $_=$0;
@@ -32,25 +45,31 @@ while ((defined ($ARGV[0])) and ($ARGV[0] =~ /^-./))
 		print <<END;
 This is a skeleton script
 $usage
-OPTIONS:
--v, --version         Prints version
--h, --help            Show this help message
--q, --quiet           Do not show messages
-    --hg              Show last log message for hg (or cvs)
 
-Examples:  $progname -q
-           $progname
+Options:
+ -v, --version         Prints version
+ -h, --help            Show this help message
+ -q, --quiet           Do not show messages
+      --vcs            Show last log message for use with VCS
 
-Report bugs and comments at https://github.com/junghans/cwdiff/issues
-                         or junghans\@votca.org
+Examples:
+ $progname -q          Run in quiet mode
+ $progname             Run
+
+Report bugs and comments at https://github.com/junghans/cwdiff/issues or junghans\@votca.org
 END
 		exit;
 	}
 	elsif (($ARGV[0] eq "-v") or ($ARGV[0] eq "--version"))
 	{
-		my $version=`perl -ne 'print "\$1\n" if /^#(version .*?) -- .*/' $0 | perl -ne 'print if eof'`;
+		my $version=`$^X -ne 'print "\$1\n" if /^#version (.*?) -- .*/' $0 | $^X -ne 'print if eof'`;
 		chomp($version);
-		print "$progname, $version  by C. Junghans\n";
+		print "$progname $version\n\n";
+		system("$^X -ne 'print \$1 if /^# (Copyright.*)/;' $0");
+		print "\nThis is free software: you are free to change and redistribute it.\n";
+		print "License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl2.html>\n";
+		print "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n";
+		print "Written by C. Junghans <junghans\@votca.org>\n";
 		exit;
 	}
 	elsif ($ARGV[0] eq "--hg")
