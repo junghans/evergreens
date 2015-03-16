@@ -74,7 +74,7 @@ END
 	}
 	elsif ($ARGV[0] eq "--hg")
 	{
-		my $message=`perl -ne 'print "\$1\n" if /^#version .*? -- (.*)\$/' $0 | perl -ne 'print if eof'`;
+		my $message=`$^X -ne 'print "\$1\n" if /^#version .*? -- (.*)\$/' $0 | $^X -ne 'print if eof'`;
 		chomp($message);
 		print "$progname: $message\n";
 		exit;
