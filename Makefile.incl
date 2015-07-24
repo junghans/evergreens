@@ -29,6 +29,7 @@
 #version 0.2.2,  11.12.14 -- added gp to pdf rule
 #version 0.3.0,  12.12.14 -- make gp/fig + deps into a single multi target rule
 #version 0.3.1,  17.12.14 -- more clean up
+#version 0.3.2,  24.07.15 -- make fig work out of cwd
 
 # A Makefile using this include file usually look like this:
 #
@@ -153,7 +154,8 @@ root_quick:
 
 %.eps %.eps.deps: %.fig
 	@echo Scanning $< for deps
-	@sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $< | tr -d '\n' | sed -e "s/^/$<:/" -e 's/fig/eps/' > .deps.$*.eps
+	cd $(<D); \
+	sed -n 's/^[[:space:]]*[0-9] \(.*\).\(eps\|png\|gif\)$$/ \1.\2/p' $(<F) | tr -d '\n' | sed -e "s/^/$(<F):/" -e 's/fig/eps/' > .deps.$(*F).eps
 	fig2dev -L eps $< $*.eps
 
 GP_DEPS=$(patsubst %,%.deps,$(GNUPLOT_PICS))
