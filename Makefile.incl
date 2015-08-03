@@ -30,6 +30,7 @@
 #version 0.3.0,  12.12.14 -- make gp/fig + deps into a single multi target rule
 #version 0.3.1,  17.12.14 -- more clean up
 #version 0.3.2,  24.07.15 -- make fig work out of cwd
+#version 0.3.3,  03.08.15 -- added svg2eps rule, fix BoundingBox in tex2eps
 
 # A Makefile using this include file usually look like this:
 #
@@ -124,8 +125,10 @@ root_quick:
 	@[ ! -f $*.gp ] || ( echo "$*.gp was found, but the '.tex to .eps' rule was called! That means, you have to remove $*.gp or $*.tex first!"; exit 1; )
 	latex -halt-on-error $<
 	latex -halt-on-error $<
-	dvips -E $*.dvi -o $@
-	rm -f $*.log $*.aux $*.dvi
+	dvips -E $*.dvi -o $*.dvi.eps
+	bb=$$(gs -dNOPAUSE -dQUIET -dBATCH -sDEVICE=bbox $*.dvi.eps 2>&1 | sed -n 1p) && sed "/^%%BoundingBox/s/.*/$$bb/" $*.dvi.eps > $@
+	rm -f $*.log $*.aux $*.dvi $*.dvi.eps
+	[ -f $@ ]
 
 %.png: %.pov .deps.povopts
 	@#povray can only write to cwd
@@ -151,6 +154,11 @@ root_quick:
 
 %.eps: %.tiff
 	convert $< $@
+
+#svg might include other files
+%.eps: %.svg
+	cd $(<D); \
+	inkscape -f $(<F) -E $(@F) || convert $(<F) $(@F)
 
 %.eps %.eps.deps: %.fig
 	@echo Scanning $< for deps
